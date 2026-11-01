@@ -778,6 +778,51 @@ tr.lzrow td {
   overflow: auto;
   max-height: 420px;
 }
+/* Routes header: the title and its note on the left, Recalculate on the right. The button turns accent-coloured, with a
+   count, when looted marks changed since the last plan */
+.panel h2 .rtitle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.rbtns {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.recalc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 3px 9px;
+  font: 600 0.75rem var(--body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.recalc b {
+  min-width: 1.3em;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--paper);
+  font: 600 0.68rem/1.4 var(--mono);
+  text-align: center;
+}
+.recalc:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.recalc:disabled:hover {
+  border-color: var(--line);
+}
+.recalc.armed,
+.recalc.due {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 /* Fordított irány in the route panel's header, next to the route name: plain text, not the header's display font */
 .panel h2 .inv {
   display: flex;
@@ -1410,10 +1455,94 @@ dialog::backdrop {
   font: 500 0.68rem var(--mono);
   color: var(--ink);
 }
-/* stop table: ticked-off stops fade and are struck through (not the box itself) */
-tbody tr.done td:not(:last-child) {
+/* stop table: ticked-off stops fade and are struck through (not the two box columns); not-found ones also turn red */
+tbody tr.done td:nth-last-child(n + 3),
+tbody tr.nf td:nth-last-child(n + 3) {
   opacity: 0.5;
   text-decoration: line-through;
+}
+tbody tr.nf td:nth-last-child(n + 3) {
+  color: #d23b3b;
+  opacity: 0.8;
+}
+/* ✕ in the stop list: marks the stop as not found */
+.nfb {
+  padding: 0 5px;
+  font: 600 0.72rem/1.4 var(--body);
+  color: var(--muted);
+}
+.nfb[aria-pressed="true"] {
+  background: #d23b3b;
+  border-color: #d23b3b;
+  color: #fff;
+}
+/* header button and the Not found dialog */
+.nfbtn i {
+  font-style: normal;
+  color: #d23b3b;
+  font-weight: 700;
+}
+.nfbtn small {
+  font: 500 0.72rem var(--mono);
+  color: var(--muted);
+}
+.nfhead {
+  display: flex;
+  gap: 6px;
+}
+#nfClear.armed {
+  border-color: #d23b3b;
+  color: #d23b3b;
+}
+.nflist {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin-top: 10px;
+  padding: 6px 14px 14px;
+  border-top: 1px solid var(--line);
+}
+.nfrow {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--grid);
+}
+.nfrow .ph {
+  width: 56px;
+  height: 42px;
+  border-radius: 3px;
+  background: var(--bg) center/cover no-repeat;
+  display: grid;
+  place-items: center;
+}
+.nfrow .ph img {
+  width: 22px;
+  height: 22px;
+}
+.nfrow b {
+  display: block;
+  font-weight: 600;
+}
+.nfrow span,
+.nfrow small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.nfrow small {
+  font-family: var(--mono);
+}
+.nfrow .acts {
+  display: flex;
+  gap: 6px;
+}
+.nflist .empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 10px 0;
 }
 td input[type="checkbox"] {
   vertical-align: middle;

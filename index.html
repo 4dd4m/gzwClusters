@@ -22,10 +22,14 @@
         <button type="button" id="keysBtn" class="keysbtn" aria-haspopup="dialog">
           <img alt="" id="keysIc" /><span data-i18n="keys.btn"></span>
         </button>
+        <button type="button" id="nfBtn" class="keysbtn nfbtn" aria-haspopup="dialog" data-i18n-title="nf.btnTitle">
+          <i aria-hidden="true">✕</i><span data-i18n="nf.btn"></span><small id="nfCount"></small>
+        </button>
         <div><b id="stContainers">0</b><span data-i18n="st.containers"></span></div>
         <div class="rt"><b id="stRuns">0</b><span data-i18n="st.runs"></span></div>
         <div class="rt"><b id="stAvg">–</b><span data-i18n="st.avg"></span></div>
         <div class="rt"><b id="stLeft">0</b><span data-i18n="st.left"></span></div>
+        <div class="rt" data-i18n-title="st.lootedTitle"><b id="stLooted">0</b><span data-i18n="st.looted"></span></div>
         <div class="io">
           <button type="button" id="importBtn" data-i18n="io.import" data-i18n-title="io.importTitle"></button>
           <button type="button" id="exportBtn" data-i18n="io.export" data-i18n-title="io.exportTitle"></button>
@@ -61,6 +65,17 @@
           <div><b></b><span></span><span></span><span></span><span></span></div>
         </div>
       </div>
+    </dialog>
+    <dialog id="nfDlg" aria-labelledby="nfT">
+      <div class="dlghead">
+        <h2 id="nfT" data-i18n="nf.title"></h2>
+        <span class="nfhead"
+          ><button type="button" id="nfClear" data-i18n="nf.clearAll"></button
+          ><button type="button" id="nfClose" data-i18n="close"></button
+        ></span>
+      </div>
+      <p class="dlgnote" data-i18n="nf.note"></p>
+      <div class="nflist" id="nfList"></div>
     </dialog>
     <dialog id="secDlg" aria-labelledby="secT">
       <div class="dlghead">
@@ -259,7 +274,15 @@
 
       <aside class="right">
         <section class="panel">
-          <h2><span data-i18n="runs.title"></span> <small data-i18n="runs.sub"></small></h2>
+          <h2>
+            <span class="rtitle"><span data-i18n="runs.title"></span> <small data-i18n="runs.sub"></small></span
+            ><span class="rbtns rt"
+              ><button type="button" id="srvReset" class="recalc" data-i18n-title="server.title">
+                <span data-i18n="server.btn"></span></button
+              ><button type="button" id="recalc" class="recalc" data-i18n-title="recalc.title">
+                <span data-i18n="recalc.btn"></span><b id="recalcN" hidden></b></button
+            ></span>
+          </h2>
           <div class="runs" id="runs"></div>
         </section>
         <section class="panel">
@@ -279,6 +302,7 @@
                   <th data-i18n="th.leg"></th>
                   <th data-i18n="th.total"></th>
                   <th data-i18n-title="th.looted">✓</th>
+                  <th data-i18n-title="th.nf">✕</th>
                 </tr>
               </thead>
               <tbody id="wp"></tbody>

@@ -169,9 +169,12 @@ const KEY = "lamang-runs-v2",
     /* Segédlet: the route settings' explanations show on hover */
     hints: true,
     noSec: new Set(),
-    /* locks added to routes as stops (marker ids), and stops ticked off as looted this raid (by position, see mkey) */
+    /* locks added to routes as stops (marker ids), and containers marked looted: position (see mkey) -> when (ms) */
     doorStops: new Set(),
-    looted: new Set(),
+    looted: new Map(),
+    /* the looted positions the routes are planned without: a snapshot taken only by Recalculate, so ticks during a run
+       (and marks running out) never change the routes until you ask */
+    planExcl: new Set(),
     run: null,
   });
 const S = DEF(),
@@ -205,7 +208,17 @@ try {
     if (typeof s.hints === "boolean") S.hints = s.hints;
     if (Array.isArray(s.noSec)) S.noSec = new Set(s.noSec.filter((x) => typeof x === "string"));
     if (Array.isArray(s.doorStops)) S.doorStops = new Set(s.doorStops.filter((x) => Number.isInteger(x)));
-    if (Array.isArray(s.looted)) S.looted = new Set(s.looted.filter((x) => typeof x === "string").slice(0, 2000));
+    /* [[position, time], ...]; the older plain list of positions had no time, so it is dropped as expired */
+    if (Array.isArray(s.looted))
+      S.looted = new Map(
+        s.looted
+          .filter((x) => Array.isArray(x) && typeof x[0] === "string" && Number.isFinite(x[1]))
+          .slice(0, 2000),
+      );
+    /* saved before the snapshot existed: start it from the marks still running */
+    S.planExcl = Array.isArray(s.planExcl)
+      ? new Set(s.planExcl.filter((x) => typeof x === "string").slice(0, 2000))
+      : new Set([...S.looted].filter(([, at]) => Date.now() - at < 30 * 60000).map(([k]) => k));
     if (Array.isArray(s.run)) S.run = s.run.filter((k) => typeof k === "string").slice(0, 1000);
     if (typeof s.search === "string") $("tq").value = s.search;
   }
@@ -239,6 +252,7 @@ const save = () => {
         noSec: [...S.noSec],
         doorStops: [...S.doorStops],
         looted: [...S.looted],
+        planExcl: [...S.planExcl],
         run: S.run,
         search: $("tq").value,
       }),
@@ -1092,7 +1106,9 @@ function flip(r) {
   restat(r);
 }
 let STEP = 0;
-let SHOWPOI = [];
+let SHOWPOI = [],
+  LOOTPTS = [],
+  NFPTS = [];
 const ALLPOI = M.filter((m) => T[m.t].group === "Points of interest");
 const NOROUTE = (t) => T[t]?.name === "COP";
 let RUNS = [],
@@ -1155,7 +1171,7 @@ function addDoors() {
   const taken = new Set(RUNS.flatMap((r) => r.seq.map((p) => p.id)));
   S.doorStops.forEach((id) => {
     const d = DOOR_BY_ID.get(id);
-    if (!d || taken.has(id)) return;
+    if (!d || taken.has(id) || S.planExcl.has(mkey(d))) return;
     let best = null,
       cost = 1e18,
       at = 0;
@@ -1212,6 +1228,40 @@ function makePlanner() {
     return null;
   }
 }
+/* Server switch: every looted mark and its timer belong to the server you looted on. Two clicks (the first one arms it for
+   3 s), then all marks go and the routes are planned again with every container */
+let srvT = 0;
+$("srvReset").onclick = (e) => {
+  const b = e.currentTarget,
+    lbl = b.querySelector("span");
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed");
+    lbl.textContent = t("server.armed");
+    clearTimeout(srvT);
+    srvT = setTimeout(() => {
+      b.classList.remove("armed");
+      lbl.textContent = t("server.btn");
+    }, 3000);
+    return;
+  }
+  clearTimeout(srvT);
+  b.classList.remove("armed");
+  lbl.textContent = t("server.btn");
+  S.looted.clear();
+  S.planExcl.clear();
+  save();
+  RUNS.forEach((r) => r.btn && (r.btn.querySelector(".rmeta").textContent = runMeta(r)));
+  detail();
+  updRecalc();
+  clearTimeout(timer);
+  compute();
+};
+$("recalc").onclick = () => {
+  S.planExcl = new Set([...S.looted.keys()].filter((k) => lootLeft(k) > 0));
+  save();
+  clearTimeout(timer);
+  compute();
+};
 function changed() {
   save();
   syncBoxes();
@@ -1225,13 +1275,19 @@ function compute() {
     starts = S.useCopS && cs ? [cs] : LZ.filter(okGZ),
     ends = [...LZ, ...(S.useCopE ? COPS : [])].filter(okGZ),
     shown = M.filter((m) => S.sel.has(m.t) && (S.useGZ || m.poi !== "Ground Zero"));
-  /* COPs are outposts, not loot: shown on the map, never part of a route */
+  /* COPs are outposts, not loot: shown on the map, never part of a route. Containers looted in the last LOOT_MIN
+     minutes are left out of the plan and only shown, faded with a tick */
+  const boxes = shown.filter((m) => !NOROUTE(m.t));
+  /* containers on the Not found list are never planned, on any server; they are only shown, faded with a red ✕ */
   const ctx = {
     id: ++jobId,
     starts,
     ends,
     showpoi: shown.filter((m) => NOROUTE(m.t)),
-    pts: shown.filter((m) => !NOROUTE(m.t)),
+    pts: boxes.filter((m) => !isNF(m) && !S.planExcl.has(mkey(m))),
+    looted: boxes.filter((m) => !isNF(m) && S.planExcl.has(mkey(m))),
+    nf: boxes.filter(isNF),
+    seen: boxes,
   };
   ctx.job = {
     pts: ctx.pts.map((p) => [p.lat, p.lng, p.poi || ""]),
@@ -1272,6 +1328,12 @@ function finish(res, ctx) {
   LZE = ctx.ends;
   SHOWPOI = ctx.showpoi;
   PTS = ctx.pts;
+  LOOTPTS = ctx.looted;
+  NFPTS = ctx.nf;
+  SEEN = new Set(ctx.seen.map(mkey));
+  NFPLAN = new Set(ctx.nf.map(nfKey));
+  SEENNF = new Set(ctx.seen.map(nfKey));
+  updRecalc();
   M.forEach((m) => (m.run = null));
   DOORS.forEach((d) => (d.run = null));
   showEstimate(res.est);
@@ -1327,8 +1389,51 @@ function finish(res, ctx) {
 }
 
 /* ---------- lists ---------- */
-/* raid checklist: stops ticked off as looted, kept by position so they survive a recalculation or reload */
-const isLooted = (p) => S.looted.has(mkey(p));
+/* Looted marks: a container ticked off (or clicked on the map) is kept by position with the time, so the mark survives a
+   recalculation or reload. For LOOT_MIN minutes it stays out of the routes; after that the mark lapses by itself.
+   Ticking never changes the routes (the route you are walking must not jump): only Recalculate, e.g. when you go out again
+   after going home, takes a new snapshot of the running marks (S.planExcl). Every other replan reuses the last snapshot. */
+const LOOT_MIN = 30,
+  LOOT_MS = LOOT_MIN * 60000;
+const lootLeft = (k) => (S.looted.has(k) ? LOOT_MS - (Date.now() - S.looted.get(k)) : 0),
+  isLooted = (p) => lootLeft(mkey(p)) > 0,
+  setLooted = (p, on) => (on ? S.looted.set(mkey(p), Date.now()) : S.looted.delete(mkey(p)));
+const clock = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+/* every position the last plan looked at (the selected types) */
+let SEEN = new Set();
+/* marks that differ from the snapshot the routes use (new ticks, or lapsed ones), counted on the Recalculate button */
+function updRecalc() {
+  let n = 0;
+  for (const k of new Set([...S.looted.keys(), ...S.planExcl]))
+    if (SEEN.has(k) && lootLeft(k) > 0 !== S.planExcl.has(k)) n++;
+  for (const k of new Set([...NF.keys(), ...NFPLAN])) if (SEENNF.has(k) && NF.has(k) !== NFPLAN.has(k)) n++;
+  const b = $("recalc"),
+    c = $("recalcN");
+  c.hidden = !n;
+  c.textContent = n;
+  b.classList.toggle("due", n > 0);
+  let fresh = 0;
+  for (const k of S.looted.keys()) if (lootLeft(k) > 0) fresh++;
+  $("stLooted").textContent = fresh;
+  /* nothing to clear: no marks, and the routes are planned with none left out */
+  $("srvReset").disabled = !S.looted.size && !S.planExcl.size;
+}
+/* every half minute: lapsed marks are dropped, and the ticks, the map and the button follow */
+setInterval(() => {
+  let gone = false;
+  for (const k of [...S.looted.keys()])
+    if (!(lootLeft(k) > 0)) {
+      S.looted.delete(k);
+      gone = true;
+    }
+  if (gone) {
+    save();
+    RUNS.forEach((r) => r.btn && (r.btn.querySelector(".rmeta").textContent = runMeta(r)));
+    detail();
+    schedule();
+  }
+  updRecalc();
+}, 30000);
 const runMeta = (r) => {
   const doors = r.n - r.boxes,
     done = r.seq.filter(isLooted).length;
@@ -1337,6 +1442,7 @@ const runMeta = (r) => {
 /* after ticks change: the route's line in the list, its panel (keyboard focus back on the same row's box) and the map */
 function lootChanged(r, focusRow) {
   save();
+  updRecalc();
   if (r && r.btn) r.btn.querySelector(".rmeta").textContent = runMeta(r);
   detail();
   if (focusRow != null) $("wp").children[focusRow]?.querySelector("input")?.focus();
@@ -1347,12 +1453,162 @@ function doneStep() {
   const r = SEL || RUNS[0];
   if (!r) return;
   if (SEL === r && STEP >= 1 && STEP <= r.n) {
-    S.looted.add(mkey(r.seq[STEP - 1]));
+    setLooted(r.seq[STEP - 1], true);
     lootChanged(r);
   }
   let k = STEP + 1;
   while (k <= r.n && isLooted(r.seq[k - 1])) k++;
   go(k);
+}
+/* ---------- not found ---------- */
+/* Containers that are not where the map says (moved or removed in a patch, wrong marker...). Kept by marker id in their own
+   storage key, apart from the settings, so Server switch and Reset leave them alone. They are never put on a route until
+   taken off the list (the Not found window, right-click on the map, or ✕ in the stop list). Like looted marks, a change
+   applies at the next plan (the Recalculate count includes it), so the route you are walking does not jump. */
+const NFKEY = "lamang-notfound-v1";
+const nfKey = (m) => (m.id != null ? "id" + m.id : "p" + mkey(m));
+const NF = new Map();
+try {
+  const a = JSON.parse(localStorage.getItem(NFKEY) || "[]");
+  if (Array.isArray(a))
+    a.slice(0, 5000).forEach((e) => {
+      if (Array.isArray(e) && typeof e[0] === "string" && Number.isFinite(e[1]))
+        NF.set(e[0], { at: e[1], type: String(e[2] || ""), label: String(e[3] || ""), poi: String(e[4] || "") });
+    });
+} catch {}
+let NFPLAN = new Set(),
+  SEENNF = new Set(),
+  NFBYKEY = null;
+const isNF = (m) => NF.has(nfKey(m)),
+  canNF = (m) => m && !m.door && !NOROUTE(m.t),
+  nfMarker = (k) => (NFBYKEY ||= new Map(M.map((m) => [nfKey(m), m]))).get(k),
+  fdate = (ms) =>
+    new Date(ms).toLocaleString(locale(), {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+function saveNF() {
+  if (FROZEN) return;
+  try {
+    localStorage.setItem(NFKEY, JSON.stringify([...NF].map(([k, v]) => [k, v.at, v.type, v.label, v.poi])));
+  } catch {}
+}
+function nfChanged() {
+  saveNF();
+  $("nfCount").textContent = NF.size || "";
+  updRecalc();
+  detail();
+  schedule();
+  if ($("nfDlg").open) renderNF();
+}
+function setNF(m, on) {
+  if (!canNF(m)) return;
+  if (on) NF.set(nfKey(m), { at: Date.now(), type: T[m.t].name, label: m.label, poi: m.poi || "" });
+  else NF.delete(nfKey(m));
+  nfChanged();
+}
+/* a single marker ringed on the map for a few seconds (also when its type is not selected) */
+function focusPt(m) {
+  FOCUS = { t: m.t, pts: [m] };
+  clearTimeout(focusT);
+  focusT = setTimeout(() => {
+    FOCUS = null;
+    schedule();
+  }, 9000);
+  fit(m.lng - 300, m.lat + 300, m.lng + 300, m.lat - 300, true);
+}
+function renderNF() {
+  const list = $("nfList");
+  list.textContent = "";
+  $("nfClear").disabled = !NF.size;
+  if (!NF.size) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = t("nf.empty");
+    list.appendChild(p);
+    return;
+  }
+  [...NF]
+    .sort((a, b) => b[1].at - a[1].at)
+    .forEach(([k, v]) => {
+      const m = nfMarker(k),
+        row = document.createElement("div"),
+        ph = document.createElement("div"),
+        info = document.createElement("div"),
+        acts = document.createElement("div");
+      row.className = "nfrow";
+      ph.className = "ph";
+      const photo = m && photoFor(m.id);
+      if (photo) ph.style.backgroundImage = `url("${photo[1]}")`;
+      else if (m && IMG[m.icon]) {
+        const im = document.createElement("img");
+        im.alt = "";
+        im.src = IMG[m.icon].src;
+        ph.appendChild(im);
+      }
+      const b = document.createElement("b"),
+        sp = document.createElement("span"),
+        sm = document.createElement("small");
+      b.textContent = v.label || v.type;
+      sp.textContent = [v.label && v.label !== v.type ? v.type : "", v.poi].filter(Boolean).join(" · ");
+      sm.textContent = t("nf.added", { date: fdate(v.at) }) + (m ? "" : " · " + t("nf.gone"));
+      info.append(b, sp, sm);
+      acts.className = "acts";
+      const show = document.createElement("button"),
+        del = document.createElement("button");
+      show.type = del.type = "button";
+      show.textContent = t("nf.show");
+      show.disabled = !m;
+      show.onclick = () => {
+        $("nfDlg").close();
+        focusPt(m);
+      };
+      del.textContent = t("nf.del");
+      del.title = t("nf.delTitle");
+      del.onclick = () => {
+        NF.delete(k);
+        nfChanged();
+        $("nfList").querySelector("button")?.focus();
+      };
+      acts.append(show, del);
+      row.append(ph, info, acts);
+      list.appendChild(row);
+    });
+}
+{
+  const dlg = $("nfDlg");
+  let armT = 0;
+  const disarm = () => {
+    clearTimeout(armT);
+    $("nfClear").classList.remove("armed");
+    $("nfClear").textContent = t("nf.clearAll");
+  };
+  $("nfBtn").onclick = () => {
+    tip.hidden = true;
+    disarm();
+    renderNF();
+    dlg.showModal();
+    $("nfList").scrollTop = 0;
+  };
+  $("nfClose").onclick = () => dlg.close();
+  /* clearing the whole list takes two clicks (the first one arms it for 3 s) */
+  $("nfClear").onclick = (e) => {
+    const b = e.currentTarget;
+    if (!b.classList.contains("armed")) {
+      b.classList.add("armed");
+      b.textContent = t("nf.clearArmed");
+      clearTimeout(armT);
+      armT = setTimeout(disarm, 3000);
+      return;
+    }
+    disarm();
+    NF.clear();
+    nfChanged();
+  };
+  $("nfCount").textContent = NF.size || "";
 }
 function renderRuns() {
   const el = $("runs");
@@ -1485,7 +1741,7 @@ function detail() {
     b.textContent = t("det.clearTicks");
     b.title = t("det.clearTicksTitle");
     b.onclick = () => {
-      r.seq.forEach((p) => S.looted.delete(mkey(p)));
+      r.seq.forEach((p) => setLooted(p, false));
       lootChanged(r);
     };
     prog.appendChild(b);
@@ -1552,15 +1808,40 @@ function detail() {
       cb.type = "checkbox";
       cb.checked = isLooted(stop);
       cb.setAttribute("aria-label", t("row.looted", { name }));
+      if (cb.checked) {
+        const at0 = S.looted.get(mkey(stop));
+        cb.title = t("row.lootedAt", { at: clock(at0), until: clock(at0 + LOOT_MS) });
+      }
       cb.onclick = (e) => e.stopPropagation();
       cb.onchange = () => {
-        cb.checked ? S.looted.add(mkey(stop)) : S.looted.delete(mkey(stop));
+        setLooted(stop, cb.checked);
         lootChanged(r, at);
       };
       td.appendChild(cb);
       tr.classList.toggle("done", cb.checked);
     }
     tr.appendChild(td);
+    /* the ✕ button: marks the stop as not found (it leaves every route from the next plan) */
+    const td2 = document.createElement("td");
+    if (stop && canNF(stop)) {
+      const nb = document.createElement("button"),
+        on = isNF(stop),
+        at = tb.children.length;
+      nb.type = "button";
+      nb.className = "nfb";
+      nb.textContent = "✕";
+      nb.setAttribute("aria-pressed", on);
+      nb.setAttribute("aria-label", t("row.nf", { name }));
+      nb.title = t(on ? "row.nfOn" : "row.nfOff");
+      nb.onclick = (e) => {
+        e.stopPropagation();
+        setNF(stop, !on);
+        $("wp").children[at]?.querySelector(".nfb")?.focus();
+      };
+      td2.appendChild(nb);
+      tr.classList.toggle("nf", on);
+    }
+    tr.appendChild(td2);
     tb.appendChild(tr);
   };
   row("S", nm(r.A.lz), r.A.lz, null, 0, "lzrow");
@@ -2075,14 +2356,20 @@ function draw() {
       drawn.push({ x, y, r: z / 2 + 3, kind: "door", o: d });
     });
   /* containers, and locks that are route stops; stops ticked off as looted fade and get a check */
-  const draws = [...SHOWPOI, ...[...PTS, ...DOORS.filter((d) => d.run)].sort((a, b) => (a.run === F) - (b.run === F))];
+  const draws = [
+    ...SHOWPOI,
+    ...NFPTS,
+    ...LOOTPTS,
+    ...[...PTS, ...DOORS.filter((d) => d.run)].sort((a, b) => (a.run === F) - (b.run === F)),
+  ];
   draws.forEach((p) => {
     const [x, y] = toS(p);
     if (x < -20 || y < -20 || x > W + 20 || y > H + 20) return;
     const inSel = F && p.run === F,
       z = inSel ? zb + 4 : zb,
-      done = p.run && isLooted(p);
-    ctx.globalAlpha = NOROUTE(p.t) ? (F ? 0.7 : 1) : done ? 0.3 : LEFT.has(p.i) ? 0.4 : F && !inSel ? 0.55 : 1;
+      gone = canNF(p) && isNF(p),
+      done = !gone && !NOROUTE(p.t) && isLooted(p);
+    ctx.globalAlpha = NOROUTE(p.t) ? (F ? 0.7 : 1) : done || gone ? 0.3 : LEFT.has(p.i) || (!p.run && S.planExcl.has(mkey(p))) ? 0.4 : F && !inSel ? 0.55 : 1;
     const im = NOROUTE(p.t) ? IMG[p.icon] && tinted(IMG[p.icon], COPC) : IMG[p.icon];
     if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth)))
       ctx.drawImage(im, x - z / 2, y - z / 2, z, z);
@@ -2093,7 +2380,26 @@ function draw() {
       ctx.fill();
     }
     ctx.globalAlpha = 1;
-    if (done) {
+    if (gone) {
+      /* not found: red ✕ in the corner */
+      const cx = x + z / 2 - 2,
+        cy = y + z / 2 - 2;
+      ctx.fillStyle = "#d23b3b";
+      ctx.strokeStyle = HALO;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, 7);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(cx - 2.5, cy - 2.5);
+      ctx.lineTo(cx + 2.5, cy + 2.5);
+      ctx.moveTo(cx + 2.5, cy - 2.5);
+      ctx.lineTo(cx - 2.5, cy + 2.5);
+      ctx.stroke();
+    } else if (done) {
       const cx = x + z / 2 - 2,
         cy = y + z / 2 - 2;
       ctx.fillStyle = "#3fbf5a";
@@ -2406,6 +2712,15 @@ cv.addEventListener("mousemove", (e) => {
       );
     else if (NOSEC.has(o.i)) L.push(t("tip.nosec", { s: NOSEC.get(o.i) }));
     else if (LEFT.has(o.i)) L.push(t("tip.left"));
+    /* off-route containers: how long a looted mark still keeps it out, and the click that marks or unmarks it */
+    if (canNF(o) && isNF(o)) L.push(t("nf.tip", { date: fdate(NF.get(nfKey(o)).at) }));
+    else if (!o.run && !o.door && !NOROUTE(o.t)) {
+      const left = lootLeft(mkey(o));
+      if (left > 0) L.push(t("tip.looted", { at: clock(S.looted.get(mkey(o))), min: Math.ceil(left / 60000) }));
+      else if (S.planExcl.has(mkey(o))) L.push(t("tip.lapsed"));
+      L.push(t(left > 0 ? "tip.unmark" : "tip.mark", { min: LOOT_MIN }));
+    }
+    if (canNF(o)) L.push(t(isNF(o) ? "nf.tipUnmark" : "nf.tipMark"));
   }
   tip.textContent = "";
   const ph = best.kind === "container" && photoFor(o.id);
@@ -2466,6 +2781,11 @@ cv.addEventListener("click", (e) => {
     STEP = r.seq.indexOf(best.o) + 1;
     updNav();
     schedule();
+  } else if (best && best.kind === "container" && !best.o.door && !NOROUTE(best.o.t) && !isNF(best.o)) {
+    /* a container on no route (left out, or already looted): click marks it looted, or takes the mark off */
+    setLooted(best.o, !isLooted(best.o));
+    lootChanged(null);
+    tip.hidden = true;
   } else if (best && best.kind === "lz" && SEL && (SEL.A.lz === best.o || SEL.B.lz === best.o)) {
     /* the open route's start or end point: the first or the last row */
     STEP = SEL.A.lz === best.o ? 0 : SEL.n + 1;
@@ -2500,6 +2820,15 @@ cv.addEventListener("dblclick", (e) => {
 });
 const ptrs = new Map();
 let pinch = null;
+/* right-click on a container: puts it on the Not found list, or takes it off */
+cv.addEventListener("contextmenu", (e) => {
+  if (MEAS_ON) return;
+  const { best } = hit(e);
+  if (!best || best.kind !== "container" || !canNF(best.o)) return;
+  e.preventDefault();
+  setNF(best.o, !isNF(best.o));
+  tip.hidden = true;
+});
 cv.addEventListener("pointerdown", (e) => {
   cv.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
@@ -2631,7 +2960,11 @@ $("reset").onclick = (e) => {
   try {
     localStorage.removeItem(KEY);
   } catch {}
+  const keepLoot = S.looted,
+    keepExcl = S.planExcl;
   Object.assign(S, DEF());
+  S.looted = keepLoot;
+  S.planExcl = keepExcl;
   S.sel.clear();
   $("tq").value = "";
   syncInputs();
