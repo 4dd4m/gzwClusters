@@ -165,6 +165,8 @@ const KEY = "lamang-runs-v2",
     legHead: true,
     legNum: false,
     zoneB: true,
+    /* Early exfil: green arrows from the selected route's best bail-out stops to the nearest LZ or COP */
+    bail: false,
     browse: false,
     /* Segédlet: the route settings' explanations show on hover */
     hints: true,
@@ -204,6 +206,7 @@ try {
     if (typeof s.legHead === "boolean") S.legHead = s.legHead;
     if (typeof s.legNum === "boolean") S.legNum = s.legNum;
     if (typeof s.zoneB === "boolean") S.zoneB = s.zoneB;
+    if (typeof s.bail === "boolean") S.bail = s.bail;
     S.browse = !!s.browse;
     if (typeof s.hints === "boolean") S.hints = s.hints;
     if (Array.isArray(s.noSec)) S.noSec = new Set(s.noSec.filter((x) => typeof x === "string"));
@@ -247,6 +250,7 @@ const save = () => {
         legHead: S.legHead,
         legNum: S.legNum,
         zoneB: S.zoneB,
+        bail: S.bail,
         browse: S.browse,
         hints: S.hints,
         noSec: [...S.noSec],
@@ -341,6 +345,7 @@ const syncInputs = () => {
   $("legHead").checked = S.legHead;
   $("legNum").checked = S.legNum;
   $("zoneB").checked = S.zoneB;
+  $("bail").checked = S.bail;
   $("browse").checked = S.browse;
   $("hints").checked = S.hints;
   document.body.classList.toggle("nohints", !S.hints);
@@ -1460,6 +1465,32 @@ function doneStep() {
   while (k <= r.n && isLooted(r.seq[k - 1])) k++;
   go(k);
 }
+/* ---------- early exfil ---------- */
+/* Where to leave the selected route early when the bag is full, and come back in after the drop-off. Every stop but the first and the last gets its nearest
+   exfil (any LZ or COP; Ground Zero ones only with Ground Zero on). A stop is an early exfil point where that distance
+   dips: no farther than at the stop before and the one after. When two such dips in a row lead to the same exfil, only
+   the nearer one stays. The map shows the ones from the step marker on, so passed ones drop off during the run. */
+function bailOuts(r) {
+  if (!r || r.n < 3) return [];
+  const ex = [...LZ, ...COPS].filter((l) => S.useGZ || l.poi !== "Ground Zero"),
+    nr = r.seq.map((p) => nearestIn(ex, p)),
+    out = [];
+  for (let i = 1; i < r.n - 1; i++) {
+    const d = nr[i].d;
+    if (d > nr[i - 1].d || d > nr[i + 1].d) continue;
+    const b = { i, p: r.seq[i], ex: nr[i].lz, d, back: r.seq[i + 1], bd: D(nr[i].lz, r.seq[i + 1]) },
+      last = out[out.length - 1];
+    if (last && last.ex === b.ex) {
+      if (d < last.d) out[out.length - 1] = b;
+    } else out.push(b);
+  }
+  return out;
+}
+/* the ones still ahead: from the stop the step marker is on (or all of them at the start) */
+const bailAhead = (r) => {
+  const from = r === SEL ? (STEP > r.n ? r.n : Math.max(0, STEP - 1)) : 0;
+  return bailOuts(r).filter((b) => b.i >= from);
+};
 /* ---------- not found ---------- */
 /* Containers that are not where the map says (moved or removed in a patch, wrong marker...). Kept by marker id in their own
    storage key, apart from the settings, so Server switch and Reset leave them alone. They are never put on a route until
@@ -1844,11 +1875,20 @@ function detail() {
     tr.appendChild(td2);
     tb.appendChild(tr);
   };
+  const BO = S.bail && !S.browse ? new Map(bailOuts(r).map((b) => [b.i, b])) : new Map();
   row("S", nm(r.A.lz), r.A.lz, null, 0, "lzrow");
   let sum = 0;
   r.seq.forEach((p, i) => {
     sum += r.legs[i];
     row(i + 1, p.label, p, r.legs[i], sum, null, p);
+    const b = BO.get(i);
+    if (b) {
+      const sm = document.createElement("small");
+      sm.className = "bail";
+      sm.textContent = t("bail.row", { name: nm(b.ex), d: fm(b.d), back: fm(b.bd) });
+      sm.title = t("bail.rowTitle");
+      tb.lastElementChild.children[1].appendChild(sm);
+    }
   });
   row("E", nm(r.B.lz), r.B.lz, r.B.d, sum + r.B.d, "lzrow");
   [...tb.children].forEach((tr, i) => (tr.onclick = () => go(i)));
@@ -1901,6 +1941,12 @@ $("poiNames").onchange = (e) => {
       schedule();
     }),
 );
+$("bail").onchange = (e) => {
+  S.bail = e.target.checked;
+  save();
+  detail();
+  schedule();
+};
 $("inv").onchange = (e) => {
   S.inv = e.target.checked;
   save();
@@ -2243,6 +2289,54 @@ function draw() {
     });
     ctx.globalAlpha = 1;
   });
+  /* early exfil, under the markers: a solid black line with an arrowhead from each bail-out stop still ahead to its exfil
+     (the drop-off path), and a dashed one from that exfil back in to the next stop (the infil). Black on a light outline,
+     so it shows on the dark satellite map */
+  const BK = "#111111",
+    BH = "rgba(255,255,255,.85)",
+    BAIL = S.bail && SEL && !S.browse ? bailAhead(SEL) : [],
+    biz = (V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22) + 4;
+  const blk = (u, v, dash, gap) => {
+    const [x1, y1] = toS(u),
+      [x2, y2] = toS(v);
+    ctx.lineJoin = ctx.lineCap = "round";
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = BH;
+    ctx.lineWidth = 5.5;
+    ctx.stroke();
+    ctx.strokeStyle = BK;
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const dx = x2 - x1,
+      dy = y2 - y1,
+      L = Math.hypot(dx, dy),
+      ah = 7;
+    if (L < gap + ah * 2.5) return;
+    const ux = dx / L,
+      uy = dy / L,
+      tx = x2 - ux * gap,
+      ty = y2 - uy * gap,
+      bx = tx - ux * ah * 1.6,
+      by = ty - uy * ah * 1.6;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(bx - uy * ah, by + ux * ah);
+    ctx.lineTo(bx + uy * ah, by - ux * ah);
+    ctx.closePath();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = BH;
+    ctx.stroke();
+    ctx.fillStyle = BK;
+    ctx.fill();
+  };
+  BAIL.forEach((b) => {
+    blk(b.ex, b.back, [7, 6], biz / 2 + 4);
+    blk(b.p, b.ex, [], 13);
+  });
   /* leg distance labels on the selected route */
   /* leg label: distance on the first line, compass heading to walk underneath */
   const tag = (x, y, lines, fg, bgc) => {
@@ -2521,6 +2615,70 @@ function draw() {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
+  if (BAIL.length) {
+    /* early exfil labels on top: "EXFIL · 230 m" with the target on the solid line, "INFIL · 250 m" with the next stop on
+       the dashed one (both on white), a black ring on the stop, and a COP target's icon and name when COPs are not shown
+       otherwise */
+    const wtag = (x, y, lines) => {
+      ctx.font = "600 11px IBM Plex Mono, monospace";
+      const tw = Math.max(...lines.map((s) => ctx.measureText(s).width)),
+        h = lines.length * 13 + 2;
+      ctx.fillStyle = "rgba(255,255,255,.93)";
+      ctx.fillRect(x - tw / 2 - 4, y - 9, tw + 8, h + 2);
+      ctx.strokeStyle = BK;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - tw / 2 - 4, y - 9, tw + 8, h + 2);
+      ctx.textAlign = "center";
+      lines.forEach((s, k) => {
+        ctx.font = (k ? "500" : "700") + " 11px IBM Plex Mono, monospace";
+        ctx.fillStyle = k ? "#333" : BK;
+        ctx.fillText(s, x, y + 3 + k * 13);
+      });
+      ctx.textAlign = "left";
+    };
+    BAIL.forEach((b) => {
+      const [x, y] = toS(b.p),
+        [ex, ey] = toS(b.ex),
+        [nx, ny] = toS(b.back);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = BH;
+      ctx.beginPath();
+      ctx.arc(x, y, zb * 0.75 + 5, 0, 7);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = BK;
+      ctx.beginPath();
+      ctx.arc(x, y, zb * 0.75 + 5, 0, 7);
+      ctx.stroke();
+      if (b.ex.kind === "cop" && !copNamed.has(mkey(b.ex))) {
+        const im = IMG[b.ex.icon] && tinted(IMG[b.ex.icon], COPC),
+          z = 18;
+        if (im) ctx.drawImage(im, ex - z / 2, ey - z / 2, z, z);
+        ctx.font = "500 11px IBM Plex Sans, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "rgba(13,19,11,.85)";
+        ctx.lineWidth = 3;
+        ctx.strokeText(mapNm(b.ex), ex, ey + z / 2 + 3);
+        ctx.fillStyle = "#f3f6ec";
+        ctx.fillText(mapNm(b.ex), ex, ey + z / 2 + 3);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        drawn.push({ x: ex, y: ey, r: z / 2 + 3, kind: "lz", o: b.ex });
+      }
+      if (Math.hypot(ex - x, ey - y) > 46)
+        wtag((x + ex) / 2, (y + ey) / 2, [
+          `${t("bail.map")} · ${fm(b.d)} m`,
+          mapNm(b.ex) + (S.legHead ? " · " + heading(b.p, b.ex) : ""),
+        ]);
+      if (Math.hypot(nx - ex, ny - ey) > 46)
+        wtag((ex + nx) / 2, (ey + ny) / 2, [
+          `${t("bail.infil")} · ${fm(b.bd)} m`,
+          t("bail.next", { k: b.i + 2 }) + (S.legHead ? " · " + heading(b.ex, b.back) : ""),
+        ]);
+    });
+  }
   if (FOCUS) {
     const name = T[FOCUS.t].name;
     FOCUS.pts.forEach((p) => {
@@ -2699,6 +2857,8 @@ cv.addEventListener("mousemove", (e) => {
     if (o.run) {
       const k = o.run.seq.indexOf(o);
       L.push(t("tip.stop", { route: o.run.label, k: k + 1, n: o.run.n, looted: isLooted(o) }));
+      const bo = S.bail && o.run === SEL && bailOuts(SEL).find((b) => b.i === k);
+      if (bo) L.push(t("bail.tip", { name: nm(bo.ex), d: fm(bo.d), h: heading(o, bo.ex), back: fm(bo.bd), k: k + 2 }));
       L.push(t("tip.prev", { d: fm(o.run.legs[k]), from: k ? t("tip.prevStop", { k }) : nm(o.run.A.lz) }));
     } else if (NOROUTE(o.t))
       L.push(

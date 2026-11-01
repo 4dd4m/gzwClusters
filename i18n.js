@@ -143,6 +143,15 @@ const I18N = {
     "sw.legNum": "Stop numbers",
     "sw.legLen": "Leg length",
     "sw.legHead": "Leg heading",
+    "sw.bail": "Early exfil",
+    "sw.bailTitle":
+      "On the selected route: from each stop where the route comes closest to an exfil (any LZ or COP), a solid black line to that exfil, the shortest way out when your bag is full, and a dashed black line from there back in to the next stop. Never the first or last stop, and only the ones from your current stop onward.",
+    "bail.map": "EXFIL",
+    "bail.infil": "INFIL",
+    "bail.next": "stop {k}",
+    "bail.row": "↘ exfil: {name} · {d} m · ↩ {back} m",
+    "bail.rowTitle": "Early exfil point: the route comes closest to an exfil here",
+    "bail.tip": "Early exfil: {name}, {d} m ({h}) · infil back: {back} m to stop {k}",
     "sw.poi": "POI names",
     full: "Full map",
     "cv.aria":
@@ -393,6 +402,15 @@ const I18N = {
     "sw.legNum": "Megállószámok",
     "sw.legLen": "Szakaszhossz",
     "sw.legHead": "Szakaszirány",
+    "sw.bail": "Korai exfil",
+    "sw.bailTitle":
+      "A kiválasztott útvonalon: minden megállóból, ahol az útvonal a legközelebb ér egy exfilhez (bármely LZ vagy COP), egy folytonos fekete vonal az exfilig, ez a legrövidebb kiút, ha megtelt a táskád, és egy szaggatott fekete vonal onnan vissza a következő megállóig. Sosem az első vagy az utolsó megálló, és csak az aktuális megállótól előre.",
+    "bail.map": "EXFIL",
+    "bail.infil": "INFIL",
+    "bail.next": "{k}. megálló",
+    "bail.row": "↘ exfil: {name} · {d} m · ↩ {back} m",
+    "bail.rowTitle": "Korai exfil pont: itt ér az útvonal a legközelebb egy exfilhez",
+    "bail.tip": "Korai exfil: {name}, {d} m ({h}) · infil vissza: {back} m ({k}. megálló)",
     "sw.poi": "POI nevek",
     full: "Teljes térkép",
     "cv.aria":

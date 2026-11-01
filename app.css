@@ -1465,6 +1465,13 @@ tbody tr.nf td:nth-last-child(n + 3) {
   color: #d23b3b;
   opacity: 0.8;
 }
+/* Early exfil: the note under a stop's name in the stop list */
+td small.bail {
+  display: block;
+  font: 600 0.68rem var(--body);
+  color: var(--ink);
+  white-space: nowrap;
+}
 /* ✕ in the stop list: marks the stop as not found */
 .nfb {
   padding: 0 5px;
