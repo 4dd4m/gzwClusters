@@ -3,7 +3,57 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kokesz Loot Runs</title>
+    <!-- Search and link previews. The address is the GitHub Pages one (also in sitemap.xml); change both if it moves. -->
+    <title>Gray Zone Warfare Loot Run Planner | Kokesz Loot Runs</title>
+    <meta
+      name="description"
+      content="Gray Zone Warfare loot run planner for Lamang: pick containers, get the shortest loot routes from the nearest LZ, COP or your position. Keys, notes, prices."
+    />
+    <meta
+      name="keywords"
+      content="Gray Zone Warfare, GZW, loot run, loot route, loot map, Lamang map, container map, route planner, keys, trader sell prices"
+    />
+    <link rel="canonical" href="https://4dd4m.github.io/gzwClusters/" />
+    <meta name="theme-color" content="#151a13" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kokesz Loot Runs" />
+    <meta property="og:title" content="Gray Zone Warfare Loot Run Planner" />
+    <meta
+      property="og:description"
+      content="Pick containers on the Lamang map and get the shortest loot routes from the nearest LZ, COP or your position. Keys, looted ticks, notes, custom POIs and trader prices."
+    />
+    <meta property="og:url" content="https://4dd4m.github.io/gzwClusters/" />
+    <meta property="og:image" content="https://4dd4m.github.io/gzwClusters/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Loot routes drawn on the Lamang map of Gray Zone Warfare" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="hu_HU" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Gray Zone Warfare Loot Run Planner" />
+    <meta
+      name="twitter:description"
+      content="Shortest loot routes on the Lamang map, from the nearest LZ, COP or your position."
+    />
+    <meta name="twitter:image" content="https://4dd4m.github.io/gzwClusters/og-image.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Kokesz Loot Runs",
+        "alternateName": "Gray Zone Warfare Loot Run Planner",
+        "url": "https://4dd4m.github.io/gzwClusters/",
+        "image": "https://4dd4m.github.io/gzwClusters/og-image.jpg",
+        "description": "Gray Zone Warfare loot run planner for the Lamang map: groups the containers you pick into routes, orders each by the shortest walk and starts it from the nearest landing zone, a COP or your position.",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any (web browser)",
+        "inLanguage": ["en", "hu"],
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "about": { "@type": "VideoGame", "name": "Gray Zone Warfare" }
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       rel="stylesheet"
@@ -13,6 +63,15 @@
   </head>
   <!-- Text comes from i18n.js (English or Hungarian): data-i18n* attributes name the keys. -->
   <body>
+    <!-- for visitors and crawlers without JavaScript: what the page is -->
+    <noscript>
+      <p class="noscript">
+        Kokesz Loot Runs is a Gray Zone Warfare loot run planner for the Lamang map: pick the container types you want, and
+        it groups them into routes, puts each route in the shortest walking order and starts it from the nearest landing
+        zone, a COP or your own position. It also shows key-locked doors, trader sell prices, notes and your own POIs.
+        Turn on JavaScript to use it.
+      </p>
+    </noscript>
     <header>
       <div>
         <h1>Kokesz Loot Runs</h1>
@@ -117,6 +176,14 @@
           <label><span data-i18n="cfg.iconSize"></span><input type="range" min="60" max="180" step="5" data-st="iconSize" /><output></output></label>
           <label><span data-i18n="cfg.lzSize"></span><input type="range" min="60" max="180" step="5" data-st="lzSize" /><output></output></label>
           <label><span data-i18n="cfg.cmSize"></span><input type="range" min="60" max="180" step="5" data-st="cmSize" /><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend data-i18n="cfg.opacity"></legend>
+          <label><span data-i18n="cfg.opLooted"></span><input type="range" min="5" max="100" step="5" data-st="opLooted" /><output></output></label>
+          <label><span data-i18n="cfg.opExcl"></span><input type="range" min="5" max="100" step="5" data-st="opExcl" /><output></output></label>
+          <label><span data-i18n="cfg.opNf"></span><input type="range" min="5" max="100" step="5" data-st="opNf" /><output></output></label>
+          <label><span data-i18n="cfg.opLeft"></span><input type="range" min="5" max="100" step="5" data-st="opLeft" /><output></output></label>
+          <label><span data-i18n="cfg.opOther"></span><input type="range" min="5" max="100" step="5" data-st="opOther" /><output></output></label>
         </fieldset>
       </div>
     </dialog>
@@ -250,6 +317,15 @@
       <div class="dlgbtns">
         <button type="button" id="ioNo"></button>
         <button type="button" id="ioYes" class="primary" data-i18n="preset.yes"></button>
+      </div>
+    </dialog>
+    <dialog id="xferDlg" aria-labelledby="xferT" aria-describedby="xferD">
+      <div class="dlghead"><h2 id="xferT"></h2></div>
+      <p class="confirmtxt" id="xferD"></p>
+      <div class="xferlist" id="xferList"></div>
+      <div class="dlgbtns">
+        <button type="button" id="xferNo" data-i18n="preset.cancel"></button>
+        <button type="button" id="xferYes" class="primary"></button>
       </div>
     </dialog>
     <dialog id="presetResetDlg" aria-labelledby="presetResetT" aria-describedby="presetResetD">

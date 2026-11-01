@@ -128,11 +128,30 @@ const STYLEKEY = "lamang-style-v1",
     iconSize: 100,
     lzSize: 100,
     cmSize: 100,
+    /* container opacity (%): looted, looted and still out until Recalculate, not found, below the minimum, another route's
+       stop while a route is open */
+    opLooted: 20,
+    opExcl: 30,
+    opNf: 30,
+    opLeft: 40,
+    opOther: 55,
   },
   LINES = ["solid", "dashed", "dotted"],
   ARROWS = ["triangle", "chevron", "none"],
   /* number settings: [min, max] */
-  STYLEN = { routeWidth: [1, 7], legWidth: [1, 6], arrowSize: [4, 14], iconSize: [60, 180], lzSize: [60, 180], cmSize: [60, 180] };
+  STYLEN = {
+    routeWidth: [1, 7],
+    legWidth: [1, 6],
+    arrowSize: [4, 14],
+    iconSize: [60, 180],
+    lzSize: [60, 180],
+    cmSize: [60, 180],
+    opLooted: [5, 100],
+    opExcl: [5, 100],
+    opNf: [5, 100],
+    opLeft: [5, 100],
+    opOther: [5, 100],
+  };
 const ST = { ...STYLE0 };
 try {
   const s = JSON.parse(localStorage.getItem(STYLEKEY) || "null") || {};
@@ -2458,7 +2477,7 @@ function detail() {
   kv(t("det.avg"), fm(r.avg) + " m");
   kv(t("det.path"), fm(r.path) + " m");
   kv(t("det.total"), fm(r.total) + " m");
-  lzRow(t("det.end"), r.B.lz, r.B.d, r.B.lz === r.A.lz ? t("det.endSame", { cop: r.A.lz.kind === "cop" }) : endTxt());
+  lzRow(t("det.end"), r.B.lz, r.B.d, r.B.lz === r.A.lz ? "" : endTxt());
   /* raid checklist progress, with a way to start the route over */
   const done = r.seq.filter(isLooted).length,
     prog = document.createElement("div");
@@ -3271,8 +3290,23 @@ function draw() {
       z = inSel ? zb + 4 : zb,
       gone = canNF(p) && isNF(p),
       done = !gone && !NOROUTE(p.t) && isLooted(p);
-    /* faded: looted 0.2; not found, or still left out of the plan as looted, 0.3; below the minimum 0.4; other routes 0.55 */
-    ctx.globalAlpha = NOROUTE(p.t) ? (F ? 0.7 : 1) : done ? 0.2 : gone || (!p.run && S.planExcl.has(mkey(p))) ? 0.3 : LEFT.has(p.i) ? 0.4 : F && !inSel ? 0.55 : 1;
+    /* faded by the opacities in Display settings: looted, not found, still left out of the plan as looted, below the minimum,
+       another route's stop while a route is open */
+    ctx.globalAlpha = NOROUTE(p.t)
+      ? F
+        ? 0.7
+        : 1
+      : (done
+          ? ST.opLooted
+          : gone
+            ? ST.opNf
+            : !p.run && S.planExcl.has(mkey(p))
+              ? ST.opExcl
+              : LEFT.has(p.i)
+                ? ST.opLeft
+                : F && !inSel
+                  ? ST.opOther
+                  : 100) / 100;
     const im = NOROUTE(p.t) ? IMG[p.icon] && tinted(IMG[p.icon], COPC) : IMG[p.icon];
     if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth)))
       ctx.drawImage(im, x - z / 2, y - z / 2, z, z);
@@ -4089,10 +4123,22 @@ new ResizeObserver(() => {
   draw();
 }).observe($("mapbox").querySelector(".maptools"));
 /* ---------- import / export ---------- */
-/* Export saves this app's browser storage (every "lamang-" key: settings with raid ticks, presets, owned keys and the
-   language) to a dated JSON file. Import reads such a file and, once confirmed, replaces those keys and reloads the
-   page with them. Other data the browser keeps for local files is never read or touched. */
-const IO_APP = "kokesz-loot-runs";
+/* Export saves the parts of this app's browser storage you tick to a dated JSON file. Import reads such a file, whole or
+   partial (an older full export too), lists the parts it holds and replaces only the ticked ones, leaving everything else
+   as it is, then reloads the page with them. Each part is one or more "lamang-" keys; a key of no known part (from a newer
+   version) travels as "Other data". Other data the browser keeps for local files is never read or touched. */
+const IO_APP = "kokesz-loot-runs",
+  /* the parts in the order the windows list them, with their keys and, where it says something, a count */
+  IO_PARTS = [
+    { id: "settings", keys: [KEY] },
+    { id: "presets", keys: [PRESETKEY], n: (v) => JSON.parse(v).list.length },
+    { id: "keys", keys: [OWNKEY], n: (v) => JSON.parse(v).length },
+    { id: "notfound", keys: [NFKEY], n: (v) => JSON.parse(v).length },
+    { id: "notes", keys: [NOTEKEY], n: (v) => JSON.parse(v).length },
+    { id: "markers", keys: [MKEY], n: (v) => JSON.parse(v).markers.length },
+    { id: "style", keys: [STYLEKEY] },
+    { id: "lang", keys: [LANGKEY], n: (v) => v.toUpperCase() },
+  ];
 function appKeys() {
   const out = [];
   try {
@@ -4103,43 +4149,112 @@ function appKeys() {
   } catch {}
   return out;
 }
-$("exportBtn").onclick = () => {
-  save();
-  savePresets();
-  const data = {};
-  appKeys().forEach((k) => {
-    try {
-      data[k] = localStorage.getItem(k);
-    } catch {}
-  });
-  const blob = new Blob(
-      [JSON.stringify({ app: IO_APP, version: 1, exported: new Date().toISOString(), data }, null, 2)],
-      {
-        type: "application/json",
-      },
-    ),
-    a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `kokesz-loot-runs-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-};
+/* key → value pairs grouped by part: [{id, keys, data: [[key, value]], n}], parts with no data left out */
+function ioGroup(pairs) {
+  const known = new Set(IO_PARTS.flatMap((p) => p.keys)),
+    parts = [...IO_PARTS, { id: "other", keys: pairs.map(([k]) => k).filter((k) => !known.has(k)) }];
+  return parts
+    .map((p) => {
+      const data = pairs.filter(([k]) => p.keys.includes(k));
+      let n = "";
+      try {
+        if (p.n && data.length) n = p.n(data[0][1]);
+      } catch {}
+      if (p.id === "other") n = data.length;
+      return { ...p, data, n };
+    })
+    .filter((p) => p.data.length);
+}
 {
-  const dlg = $("ioDlg"),
+  const dlg = $("xferDlg"),
+    list = $("xferList"),
     file = $("importFile");
-  let pending = null;
-  /* one dialog for both: a Yes / No question, or a message with just OK */
-  const show = (title, text, ask) => {
+  let run = null;
+  /* the part list: All (ticks or clears the rest, shows "some" while mixed) and one box per part */
+  const boxes = () => [...list.querySelectorAll("input[data-part]")],
+    syncAll = () => {
+      const b = boxes().filter((x) => !x.disabled),
+        on = b.filter((x) => x.checked).length;
+      $("xferAll").checked = on === b.length && on > 0;
+      $("xferAll").indeterminate = on > 0 && on < b.length;
+      $("xferYes").disabled = !on;
+    };
+  const open = (title, text, yes, parts, onYes) => {
+    $("xferT").textContent = title;
+    $("xferD").textContent = text;
+    $("xferYes").textContent = yes;
+    list.textContent = "";
+    const row = (id, label, n, on, off) => {
+      const l = document.createElement("label"),
+        cb = document.createElement("input"),
+        sp = document.createElement("span"),
+        sm = document.createElement("small");
+      cb.type = "checkbox";
+      if (id) cb.dataset.part = id;
+      else cb.id = "xferAll";
+      cb.checked = on;
+      cb.disabled = off;
+      sp.textContent = label;
+      sm.textContent = n === "" || n == null ? "" : String(n);
+      l.append(cb, sp, sm);
+      if (!id) l.className = "all";
+      list.appendChild(l);
+      return cb;
+    };
+    row(null, t("io.all"), "", true, false).onchange = (e) => {
+      boxes()
+        .filter((x) => !x.disabled)
+        .forEach((x) => (x.checked = e.target.checked));
+      syncAll();
+    };
+    parts.forEach((p) => (row(p.id, t("io.part." + p.id), p.empty ? t("io.empty") : p.n, !p.empty, !!p.empty).onchange = syncAll));
+    syncAll();
+    run = () => onYes(new Set(boxes().filter((x) => x.checked).map((x) => x.dataset.part)));
+    tip.hidden = true;
+    dlg.showModal();
+    $("xferYes").focus();
+  };
+  $("xferNo").onclick = () => dlg.close();
+  $("xferYes").onclick = () => run && run();
+  /* a message with just OK (import errors) */
+  const show = (title, text) => {
     $("ioT").textContent = title;
     $("ioD").textContent = text;
-    $("ioYes").hidden = !ask;
-    $("ioNo").textContent = t(ask ? "preset.no" : "io.ok");
+    $("ioYes").hidden = true;
+    $("ioNo").textContent = t("io.ok");
     tip.hidden = true;
-    if (!dlg.open) dlg.showModal();
+    if (!$("ioDlg").open) $("ioDlg").showModal();
     $("ioNo").focus();
   };
+  $("ioNo").onclick = () => $("ioDlg").close();
+
+  $("exportBtn").onclick = () => {
+    save();
+    savePresets();
+    const pairs = [];
+    appKeys().forEach((k) => {
+      try {
+        pairs.push([k, localStorage.getItem(k)]);
+      } catch {}
+    });
+    const have = ioGroup(pairs),
+      parts = [...IO_PARTS.map((p) => have.find((h) => h.id === p.id) || { ...p, empty: true }), ...have.filter((h) => h.id === "other")];
+    open(t("io.exportHead"), t("io.exportText"), t("io.exportBtn"), parts, (pick) => {
+      const data = Object.fromEntries(have.filter((p) => pick.has(p.id)).flatMap((p) => p.data));
+      const blob = new Blob([JSON.stringify({ app: IO_APP, version: 1, exported: new Date().toISOString(), data }, null, 2)], {
+          type: "application/json",
+        }),
+        a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `kokesz-loot-runs-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      dlg.close();
+    });
+  };
+
   $("importBtn").onclick = () => {
     file.value = "";
     file.click();
@@ -4151,45 +4266,45 @@ $("exportBtn").onclick = () => {
     try {
       parsed = JSON.parse(await f.text());
     } catch {}
-    /* cleared once read, so picking the same file again (e.g. after No) still counts as a choice */
+    /* cleared once read, so picking the same file again (e.g. after Cancel) still counts as a choice */
     file.value = "";
     /* only this app's keys with text values are taken from the file */
-    const data =
-      parsed && parsed.app === IO_APP && parsed.data && typeof parsed.data === "object"
-        ? Object.entries(parsed.data).filter(([k, v]) => /^lamang-[\w.-]+$/.test(k) && typeof v === "string")
-        : [];
-    if (!data.length) {
-      pending = null;
-      show(t("io.errTitle"), t("io.errText", { name: f.name }), false);
+    const pairs =
+        parsed && parsed.app === IO_APP && parsed.data && typeof parsed.data === "object"
+          ? Object.entries(parsed.data).filter(([k, v]) => /^lamang-[\w.-]+$/.test(k) && typeof v === "string")
+          : [],
+      parts = ioGroup(pairs);
+    if (!parts.length) {
+      show(t("io.errTitle"), t("io.errText", { name: f.name }));
       return;
     }
-    pending = data;
     const when = new Date(parsed.exported);
-    show(
-      t("io.importConfirm"),
+    open(
+      t("io.importHead"),
       t("io.importText", { name: f.name, date: isNaN(when) ? "?" : when.toLocaleString(locale()) }),
-      true,
+      t("io.importBtn"),
+      parts,
+      (pick) => {
+        /* nothing may save the old state over the import before the page has reloaded */
+        FROZEN = true;
+        clearTimeout(timer);
+        if (planner) planner.terminate();
+        try {
+          parts
+            .filter((p) => pick.has(p.id))
+            .forEach((p) => {
+              p.keys.forEach((k) => localStorage.removeItem(k));
+              p.data.forEach(([k, v]) => localStorage.setItem(k, v));
+            });
+        } catch {
+          FROZEN = false;
+          dlg.close();
+          show(t("io.errTitle"), t("io.storeErr"));
+          return;
+        }
+        location.reload();
+      },
     );
-  };
-  $("ioNo").onclick = () => {
-    pending = null;
-    dlg.close();
-  };
-  $("ioYes").onclick = () => {
-    if (!pending) return;
-    /* nothing may save the old state over the import before the page has reloaded */
-    FROZEN = true;
-    clearTimeout(timer);
-    if (planner) planner.terminate();
-    try {
-      appKeys().forEach((k) => localStorage.removeItem(k));
-      pending.forEach(([k, v]) => localStorage.setItem(k, v));
-    } catch {
-      FROZEN = false;
-      show(t("io.errTitle"), t("io.storeErr"), false);
-      return;
-    }
-    location.reload();
   };
 }
 
@@ -4216,7 +4331,7 @@ $("exportBtn").onclick = () => {
       c.value = ST[k];
       const o = c.nextElementSibling;
       if (o && o.tagName === "OUTPUT")
-        o.textContent = /^(icon|lz|cm)Size$/.test(k) ? ST[k] + "%" : (+ST[k]).toLocaleString(locale()) + " px";
+        o.textContent = /^(icon|lz|cm)Size$|^op/.test(k) ? ST[k] + "%" : (+ST[k]).toLocaleString(locale()) + " px";
     });
   };
   ctl.forEach(

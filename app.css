@@ -1095,6 +1095,8 @@ body.anim:not(.browse) .right {
   width: min(560px, calc(100vw - 32px));
 }
 .cfg {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   display: grid;
   gap: 10px;
@@ -1427,6 +1429,7 @@ dialog::backdrop {
 /* confirmation modal: a question and two buttons, the destructive one in the accent colour */
 #clearDlg,
 #presetDlg,
+#xferDlg,
 #presetDelDlg,
 #presetResetDlg,
 #noteDlg,
@@ -1954,4 +1957,42 @@ a.btnlink:hover {
 }
 td input[type="checkbox"] {
   vertical-align: middle;
+}
+
+/* Export / Import: the parts to take, All on top (it shows "some" while mixed), each with its count or "empty" */
+.xferlist {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 14px 0;
+}
+.xferlist label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--grid);
+  cursor: pointer;
+}
+.xferlist label.all {
+  font-weight: 600;
+  border-bottom-color: var(--line);
+}
+.xferlist label:has(input:disabled) {
+  color: var(--muted);
+  cursor: default;
+}
+.xferlist small {
+  margin-left: auto;
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+}
+
+/* the page described for visitors and crawlers without JavaScript */
+.noscript {
+  max-width: 80ch;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
 }
