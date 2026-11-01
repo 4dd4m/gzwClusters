@@ -82,7 +82,7 @@ const COPS = M.filter((m) => T[m.t].name === "COP").map((m) => ({
   kind: "cop",
   icon: m.icon,
 }));
-const nm = (l) => (l.kind === "cop" ? l.name : "LZ " + l.name);
+const nm = (l) => (l.kind === "cop" ? l.name : l.kind === "me" ? t("me.name") : "LZ " + l.name);
 /* "COP as start point" starts every route at one chosen COP; the list shows them A-Z without the "Outpost" prefix */
 {
   const sel = $("copStart");
@@ -96,6 +96,18 @@ const nm = (l) => (l.kind === "cop" ? l.name : "LZ " + l.name);
     });
 }
 const copStartPt = () => COPS.find((c) => c.name === S.copStart) || null;
+/* Start from my position: the one start point set on the map (S.me) replaces the LZs and the starting COP, which is set
+   aside meanwhile. Routes refer to their start point by identity, so the object stays the same while the spot does.
+   PICKME: waiting for the click on the map that sets the spot. */
+let ME = null,
+  PICKME = false;
+const meStart = () => {
+    if (!S.me) return (ME = null);
+    if (!ME || ME.lat !== S.me.lat || ME.lng !== S.me.lng)
+      ME = { lat: S.me.lat, lng: S.me.lng, name: "", poi: "", kind: "me" };
+    return ME;
+  },
+  copStartOn = () => S.useCopS && !S.me;
 /* on the map, COPs drop the "Outpost" prefix: "Outpost Ripcord" shows as "Ripcord" */
 const short = (t) => t.replace(/^Outpost\s+/i, ""),
   mapNm = (l) => (l.kind === "cop" ? short(l.name) : nm(l));
@@ -156,6 +168,8 @@ const KEY = "lamang-runs-v2",
     useGZ: false,
     inv: false,
     poiNames: false,
+    /* Start from my position: {lat, lng} set on the map, or null; while set it replaces the LZs and the starting COP */
+    me: null,
     useCopS: false,
     copStart: "",
     useCopE: false,
@@ -196,6 +210,7 @@ try {
     S.useGZ = !!s.useGZ;
     S.inv = !!s.inv;
     S.poiNames = !!s.poiNames;
+    if (s.me && Number.isFinite(s.me.lat) && Number.isFinite(s.me.lng)) S.me = { lat: +s.me.lat, lng: +s.me.lng };
     if (typeof s.copStart === "string") S.copStart = s.copStart;
     if ("useCopS" in s || "useCopE" in s) {
       S.useCopS = !!s.useCopS;
@@ -242,6 +257,7 @@ const save = () => {
         useGZ: S.useGZ,
         inv: S.inv,
         poiNames: S.poiNames,
+        me: S.me,
         useCopS: S.useCopS,
         copStart: S.copStart,
         useCopE: S.useCopE,
@@ -335,6 +351,11 @@ const syncInputs = () => {
   $("useGZ").checked = S.useGZ;
   $("inv").checked = S.inv;
   $("poiNames").checked = S.poiNames;
+  /* Start from my position: Set on map, Cancel while picking, Move once set (✕ clears); the starting COP steps aside */
+  $("meSet").textContent = t(PICKME ? "me.cancel" : S.me ? "me.move" : "me.set");
+  $("meSet").setAttribute("aria-pressed", String(PICKME));
+  $("meClear").hidden = !S.me || PICKME;
+  $("copSRow").hidden = !!S.me;
   $("useCopS").checked = S.useCopS;
   $("copStart").value = S.copStart;
   $("copStart").disabled = !S.useCopS;
@@ -1277,7 +1298,8 @@ function changed() {
 function compute() {
   const okGZ = (l) => S.useGZ || l.poi !== "Ground Zero",
     cs = copStartPt(),
-    starts = S.useCopS && cs ? [cs] : LZ.filter(okGZ),
+    me = meStart(),
+    starts = me ? [me] : copStartOn() && cs ? [cs] : LZ.filter(okGZ),
     ends = [...LZ, ...(S.useCopE ? COPS : [])].filter(okGZ),
     shown = M.filter((m) => S.sel.has(m.t) && (S.useGZ || m.poi !== "Ground Zero"));
   /* COPs are outposts, not loot: shown on the map, never part of a route. Containers looted in the last LOOT_MIN
@@ -1642,6 +1664,147 @@ function renderNF() {
   $("nfCount").textContent = NF.size || "";
 }
 
+/* ---------- notes and the right-click menu ---------- */
+/* Notes on containers, added from a route stop's right-click menu. Kept by marker id in their own storage key, like the Not
+   found list, so Server switch and Reset leave them alone and Export takes them along. A note stays with its container when it
+   drops off the routes: hovering it on the map still shows the note and a yellow chat bubble still marks it; the stop list
+   shows it under the stop's name. */
+const NOTEKEY = "lamang-notes-v1",
+  NOTEMAX = 300;
+const NOTES = new Map();
+try {
+  const a = JSON.parse(localStorage.getItem(NOTEKEY) || "[]");
+  if (Array.isArray(a))
+    a.slice(0, 5000).forEach((e) => {
+      if (Array.isArray(e) && typeof e[0] === "string" && typeof e[1] === "string" && e[1].trim())
+        NOTES.set(e[0], e[1].slice(0, NOTEMAX));
+    });
+} catch {}
+/* containers and key-locked doors take notes (a door's is kept by its lock's marker id); only containers can be Not found */
+const canNote = (m) => !!m && (canNF(m) || !!m.door),
+  noteOf = (m) => NOTES.get(nfKey(m)) || "";
+function setNote(m, text) {
+  text = text.trim().slice(0, NOTEMAX);
+  if (text) NOTES.set(nfKey(m), text);
+  else NOTES.delete(nfKey(m));
+  if (!FROZEN)
+    try {
+      localStorage.setItem(NOTEKEY, JSON.stringify([...NOTES]));
+    } catch {}
+  detail();
+  schedule();
+}
+/* The menu of a route stop, from a right-click on it on the map or on its stop-list row: Not found on or off (containers
+   only, not doors), Add / Edit note.
+   Opens at the pointer; a click elsewhere (which does nothing else), Esc, Tab, scrolling or resizing closes it. */
+const ctxEl = $("ctxMenu");
+let CTX = null,
+  ctxSwallow = false;
+function openCtx(m, x, y, from) {
+  CTX = { m, from };
+  $("ctxNf").hidden = !canNF(m);
+  $("ctxNf").textContent = t(isNF(m) ? "ctx.nfOff" : "ctx.nfOn");
+  $("ctxNote").textContent = t(noteOf(m) ? "ctx.noteEdit" : "ctx.noteAdd");
+  tip.hidden = true;
+  ctxEl.hidden = false;
+  const w = ctxEl.offsetWidth,
+    h = ctxEl.offsetHeight;
+  ctxEl.style.left = Math.max(4, Math.min(x, innerWidth - w - 4)) + "px";
+  ctxEl.style.top = Math.max(4, y + h > innerHeight - 4 ? y - h : y) + "px";
+  ctxEl.querySelector("button:not([hidden])").focus({ preventScroll: true });
+}
+function closeCtx(refocus) {
+  if (ctxEl.hidden) return;
+  ctxEl.hidden = true;
+  if (refocus) CTX?.from?.focus({ preventScroll: true });
+  CTX = null;
+}
+{
+  ctxEl.onkeydown = (e) => {
+    const items = [...ctxEl.querySelectorAll("button:not([hidden])")],
+      i = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp")
+      items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+    else if (e.key === "Home" || e.key === "End") items[e.key === "Home" ? 0 : items.length - 1].focus();
+    else if (e.key === "Escape" || e.key === "Tab") closeCtx(true);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  addEventListener(
+    "pointerdown",
+    (e) => {
+      ctxSwallow = false;
+      if (ctxEl.hidden || ctxEl.contains(e.target)) return;
+      closeCtx(false);
+      ctxSwallow = e.button === 0;
+    },
+    true,
+  );
+  addEventListener(
+    "click",
+    (e) => {
+      if (!ctxSwallow) return;
+      ctxSwallow = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+  ["resize", "blur"].forEach((n) => addEventListener(n, () => closeCtx(false)));
+  ["scroll", "wheel"].forEach((n) => addEventListener(n, () => closeCtx(false), { capture: true, passive: true }));
+  $("ctxNf").onclick = () => {
+    if (!CTX) return;
+    const m = CTX.m;
+    closeCtx(true);
+    setNF(m, !isNF(m));
+  };
+  $("ctxNote").onclick = () => {
+    if (!CTX) return;
+    const m = CTX.m;
+    closeCtx(true);
+    openNote(m);
+  };
+}
+/* Add / Edit note: Save needs some text; Delete (only when editing) takes the note off; Ctrl+Enter saves */
+let NOTEM = null;
+function openNote(m) {
+  const had = noteOf(m),
+    type = T[m.t].name;
+  NOTEM = m;
+  $("noteT").textContent = t(had ? "note.editTitle" : "note.addTitle");
+  $("noteFor").textContent = [m.label || type, m.label && m.label !== type ? type : "", m.poi].filter(Boolean).join(" · ");
+  $("noteText").value = had;
+  $("noteDel").hidden = !had;
+  $("noteOk").textContent = t(had ? "note.save" : "note.add");
+  $("noteOk").disabled = !had;
+  $("noteDlg").showModal();
+  $("noteText").focus();
+  $("noteText").setSelectionRange(had.length, had.length);
+}
+{
+  const dlg = $("noteDlg"),
+    inp = $("noteText");
+  inp.oninput = () => ($("noteOk").disabled = !inp.value.trim());
+  inp.onkeydown = (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      $("noteForm").requestSubmit();
+    }
+  };
+  $("noteForm").onsubmit = (e) => {
+    e.preventDefault();
+    if (!inp.value.trim()) return;
+    setNote(NOTEM, inp.value);
+    dlg.close();
+  };
+  $("noteDel").onclick = () => {
+    setNote(NOTEM, "");
+    dlg.close();
+  };
+  $("noteCancel").onclick = () => dlg.close();
+}
+
 /* ---------- trader prices ---------- */
 /* Sell prices from gzwitems.com, a price list players keep up to date (its own Contribute page takes the reports; the dialog
    links there rather than collecting prices here, so every report lands in one list). Fetched when the dialog first opens,
@@ -1935,7 +2098,12 @@ function detail() {
       ? t("det.endCopBias", { lz: nm(lz.lz), d: fm(lz.d), bias: fm(S.copBias) })
       : t("det.endCop");
   };
-  lzRow(t("det.start"), r.A.lz, r.A.d, t(r.A.lz.kind === "cop" ? "det.startCop" : "det.startLz"));
+  lzRow(
+    t("det.start"),
+    r.A.lz,
+    r.A.d,
+    t(r.A.lz.kind === "cop" ? "det.startCop" : r.A.lz.kind === "me" ? "det.startMe" : "det.startLz"),
+  );
   kv(t("det.containers"), r.boxes + (r.n > r.boxes ? t("det.doors", { n: r.n - r.boxes }) : ""));
   kv(t("det.avg"), fm(r.avg) + " m");
   kv(t("det.path"), fm(r.path) + " m");
@@ -2054,6 +2222,21 @@ function detail() {
       tr.classList.toggle("nf", on);
     }
     tr.appendChild(td2);
+    /* right-click: the same menu as on the map; the stop's note goes under its name */
+    if (stop && canNote(stop)) {
+      const note = noteOf(stop);
+      if (note) {
+        const sm = document.createElement("small");
+        sm.className = "note";
+        sm.textContent = note;
+        tr.children[1].appendChild(sm);
+      }
+      tr.oncontextmenu = (e) => {
+        e.preventDefault();
+        const b = tr.getBoundingClientRect();
+        openCtx(stop, e.clientX || b.left + 40, e.clientY || b.bottom, tr.querySelector(".nfb, input"));
+      };
+    }
     tb.appendChild(tr);
   };
   const BO = S.bail && !S.browse ? new Map(bailOuts(r).map((b) => [b.i, b])) : new Map();
@@ -2385,6 +2568,35 @@ function draw() {
     LC = css.getPropertyValue("--m-lz").trim(),
     COPC = css.getPropertyValue("--m-cop").trim() || "#3d9bff",
     HALO = css.getPropertyValue("--m-halo").trim();
+  /* a container or door with a note: a yellow chat bubble with three dots off the top-left corner of its z-sized icon at x, y
+     (top-right holds the stop number, bottom-right the looted / not found badge), its tail pointing at the icon */
+  const noteBubble = (x, y, z) => {
+    const w = 15,
+      h = 11,
+      r = 3,
+      bx = x - z / 2 - w + 5,
+      by = y - z / 2 - h + 1;
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by);
+    ctx.arcTo(bx + w, by, bx + w, by + h, r);
+    ctx.arcTo(bx + w, by + h, bx, by + h, r);
+    ctx.lineTo(bx + w - 1, by + h + 4);
+    ctx.lineTo(bx + w - 7, by + h);
+    ctx.arcTo(bx, by + h, bx, by, r);
+    ctx.arcTo(bx, by, bx + w, by, r);
+    ctx.closePath();
+    ctx.fillStyle = "#f3c623";
+    ctx.strokeStyle = HALO;
+    ctx.lineWidth = 1.5;
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = HALO;
+    for (const dx of [-3.6, 0, 3.6]) {
+      ctx.beginPath();
+      ctx.arc(bx + w / 2 + dx, by + h / 2, 1.2, 0, 7);
+      ctx.fill();
+    }
+  };
   const line = (pts, color, w, dash, alpha) => {
     ctx.globalAlpha = alpha;
     ctx.setLineDash(dash);
@@ -2604,6 +2816,46 @@ function draw() {
       ctx.globalAlpha = 1;
       drawn.push({ x, y, r: z / 2 + 3, kind: "lz", o: l });
     });
+  /* Start from my position: a green pin with its tip on the spot, named under it like a landing zone */
+  const me = meStart();
+  if (me) {
+    const [x, y] = toS(me);
+    if (x > -30 && y > -30 && x < W + 30 && y < H + 50) {
+      const r = 8,
+        hy = y - 15;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x - 2, y - 4, x - r, hy + 5, x - r, hy);
+      ctx.arc(x, hy, r, Math.PI, 0);
+      ctx.bezierCurveTo(x + r, hy + 5, x + 2, y - 4, x, y);
+      ctx.closePath();
+      ctx.fillStyle = "#2fbf71";
+      ctx.strokeStyle = HALO;
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(x, hy, 3, 0, 7);
+      ctx.fill();
+      ctx.font = "500 11px IBM Plex Sans, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.lineJoin = "round";
+      const mn = nm(me),
+        ty = y + 8,
+        tw = ctx.measureText(mn).width;
+      ctx.strokeStyle = "rgba(13,19,11,.85)";
+      ctx.lineWidth = 3;
+      ctx.strokeText(mn, x, ty);
+      ctx.fillStyle = "#f3f6ec";
+      ctx.fillText(mn, x, ty);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      labelBoxes.push([x - tw / 2 - 2, ty - 1, x + tw / 2 + 2, ty + 13]);
+      drawn.push({ x, y: hy, r: r + 4, kind: "lz", o: me });
+    }
+  }
   OB.forEach((b) => {
     const [x, y] = toS(b),
       z = 20;
@@ -2628,6 +2880,7 @@ function draw() {
       ctx.globalAlpha = 0.85;
       if (IMG.locked && IMG.locked.complete) ctx.drawImage(IMG.locked, x - z / 2, y - z / 2, z, z);
       ctx.globalAlpha = 1;
+      if (NOTES.has(nfKey(d))) noteBubble(x, y, z);
       drawn.push({ x, y, r: z / 2 + 3, kind: "door", o: d });
     });
   /* containers, and locks that are route stops; stops ticked off as looted fade and get a check */
@@ -2644,7 +2897,8 @@ function draw() {
       z = inSel ? zb + 4 : zb,
       gone = canNF(p) && isNF(p),
       done = !gone && !NOROUTE(p.t) && isLooted(p);
-    ctx.globalAlpha = NOROUTE(p.t) ? (F ? 0.7 : 1) : done || gone ? 0.3 : LEFT.has(p.i) || (!p.run && S.planExcl.has(mkey(p))) ? 0.4 : F && !inSel ? 0.55 : 1;
+    /* faded: looted 0.2; not found, or still left out of the plan as looted, 0.3; below the minimum 0.4; other routes 0.55 */
+    ctx.globalAlpha = NOROUTE(p.t) ? (F ? 0.7 : 1) : done ? 0.2 : gone || (!p.run && S.planExcl.has(mkey(p))) ? 0.3 : LEFT.has(p.i) ? 0.4 : F && !inSel ? 0.55 : 1;
     const im = NOROUTE(p.t) ? IMG[p.icon] && tinted(IMG[p.icon], COPC) : IMG[p.icon];
     if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth)))
       ctx.drawImage(im, x - z / 2, y - z / 2, z, z);
@@ -2692,6 +2946,7 @@ function draw() {
       ctx.lineTo(cx + 3, cy - 2.2);
       ctx.stroke();
     }
+    if (canNote(p) && NOTES.has(nfKey(p))) noteBubble(x, y, z);
     drawn.push({ x, y, r: z / 2 + 2, kind: "container", o: p });
   });
   if (F) {
@@ -3010,7 +3265,7 @@ cv.addEventListener("mousemove", (e) => {
     }
     return;
   }
-  if (ptrs.size) {
+  if (ptrs.size || !ctxEl.hidden) {
     return;
   }
   const { best, x, y } = hit(e);
@@ -3024,10 +3279,20 @@ cv.addEventListener("mousemove", (e) => {
   const o = best.o;
   /* a key's lock: which key opens it and whether you have it */
   const keyLine = (d) => t("tip.key", { name: d.door.name, own: OWN.has(d.door.name) });
+  /* a note, as its own block in the tooltip */
+  const tipNote = (m) => {
+    const n = document.createElement("span");
+    n.className = "tipnote";
+    n.textContent = noteOf(m);
+    return n;
+  };
   if (best.kind === "door") {
-    L.push(o.label, keyLine(o), t("tip.door", { d: fm(routeDist(HOV || SEL, o)) }));
+    L.push(o.label, keyLine(o));
+    if (noteOf(o)) L.push(tipNote(o));
+    L.push(t("tip.door", { d: fm(routeDist(HOV || SEL, o)) }));
   } else if (best.kind === "lz") {
     L.push(mapNm(o) + (o.kind === "cop" ? " (COP)" : ""));
+    if (o.kind === "me") L.push(t("me.tip"));
     SEL && SEL.A.lz === o && L.push(t("tip.lzStart", { route: SEL.label, d: fm(SEL.A.d) }));
     SEL && SEL.B.lz === o && L.push(t("tip.lzEnd", { route: SEL.label, d: fm(SEL.B.d) }));
   } else if (best.kind === "ob") L.push("Operation Base");
@@ -3035,6 +3300,7 @@ cv.addEventListener("mousemove", (e) => {
     L.push(NOROUTE(o.t) ? short(o.label) : o.label);
     L.push((o.door ? t("tip.keyDoor") : T[o.t].name) + (o.poi ? " · " + o.poi : ""));
     if (o.door) L.push(keyLine(o));
+    if (canNote(o) && noteOf(o)) L.push(tipNote(o));
     if (o.run) {
       const k = o.run.seq.indexOf(o);
       L.push(t("tip.stop", { route: o.run.label, k: k + 1, n: o.run.n, looted: isLooted(o) }));
@@ -3043,8 +3309,8 @@ cv.addEventListener("mousemove", (e) => {
       L.push(t("tip.prev", { d: fm(o.run.legs[k]), from: k ? t("tip.prevStop", { k }) : nm(o.run.A.lz) }));
     } else if (NOROUTE(o.t))
       L.push(
-        !S.browse && (S.useCopS || S.useCopE)
-          ? S.useCopS && o.label === S.copStart
+        !S.browse && (copStartOn() || S.useCopE)
+          ? copStartOn() && o.label === S.copStart
             ? t("tip.copStart", { alsoEnd: S.useCopE })
             : S.useCopE
               ? t("tip.copEnd")
@@ -3061,7 +3327,7 @@ cv.addEventListener("mousemove", (e) => {
       else if (S.planExcl.has(mkey(o))) L.push(t("tip.lapsed"));
       L.push(t(left > 0 ? "tip.unmark" : "tip.mark", { min: LOOT_MIN }));
     }
-    if (canNF(o)) L.push(t(isNF(o) ? "nf.tipUnmark" : "nf.tipMark"));
+    if (o.run && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipDoor"));
   }
   tip.textContent = "";
   const ph = best.kind === "container" && photoFor(o.id);
@@ -3073,9 +3339,10 @@ cv.addEventListener("mousemove", (e) => {
     }
     tip.appendChild(tipImg);
   }
+  /* text lines, and the note as its own block (no line break needed around it) */
   L.forEach((l, i) => {
-    if (i) tip.appendChild(document.createElement("br"));
-    tip.appendChild(document.createTextNode(l));
+    if (i && typeof l === "string" && typeof L[i - 1] === "string") tip.appendChild(document.createElement("br"));
+    tip.append(l);
   });
   tip.hidden = false;
   TP = { x, y };
@@ -3110,6 +3377,12 @@ cv.addEventListener("click", (e) => {
   }
   if (moved) {
     moved = false;
+    return;
+  }
+  /* Start from my position: the click (not a drag, which pans) sets the spot where the routes start */
+  if (PICKME) {
+    const { x, y } = hit(e);
+    setMe({ lat: V.y - y / sc(), lng: V.x + x / sc() });
     return;
   }
   const { best } = hit(e);
@@ -3161,14 +3434,12 @@ cv.addEventListener("dblclick", (e) => {
 });
 const ptrs = new Map();
 let pinch = null;
-/* right-click on a container: puts it on the Not found list, or takes it off */
+/* right-click on a route stop: its menu (Not found, note); anywhere else on the map it does nothing, no browser menu either */
 cv.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
   if (MEAS_ON) return;
   const { best } = hit(e);
-  if (!best || best.kind !== "container" || !canNF(best.o)) return;
-  e.preventDefault();
-  setNF(best.o, !isNF(best.o));
-  tip.hidden = true;
+  if (best && best.kind === "container" && best.o.run && canNote(best.o)) openCtx(best.o, e.clientX, e.clientY, cv);
 });
 cv.addEventListener("pointerdown", (e) => {
   cv.setPointerCapture(e.pointerId);
@@ -3224,8 +3495,14 @@ function measPt(e) {
 }
 function measHint() {
   const h = $("mhint");
-  h.hidden = !MEAS_ON;
-  h.textContent = !MEAS ? t("meas.start") : !MEAS.b ? t("meas.end") : t("meas.clear");
+  h.hidden = !MEAS_ON && !PICKME;
+  h.textContent = PICKME
+    ? t("me.pick")
+    : !MEAS
+      ? t("meas.start")
+      : !MEAS.b
+        ? t("meas.end")
+        : t("meas.clear");
 }
 function measClick(e) {
   if (!MEAS) MEAS = { a: measPt(e) };
@@ -3240,6 +3517,7 @@ function measClick(e) {
   schedule();
 }
 function setMeasure(on) {
+  if (on && PICKME) setPickMe(false);
   MEAS_ON = on;
   MEAS = null;
   MHOV = null;
@@ -3258,6 +3536,30 @@ function setMeasure(on) {
   schedule();
 }
 $("measure").onchange = (e) => setMeasure(e.target.checked);
+/* ---------- start from my position ---------- */
+/* Set on map waits for one click on the map (dragging and zooming still move it; Esc or the button again cancels), then
+   every route starts from that spot; Move picks a new one, ✕ clears it and the LZs (or the starting COP) are back */
+function setPickMe(on) {
+  if (on && MEAS_ON) setMeasure(false);
+  PICKME = on;
+  cv.classList.toggle("picking", on);
+  tip.hidden = true;
+  measHint();
+  syncInputs();
+}
+function setMe(p) {
+  S.me = p && { lat: Math.round(p.lat * 10) / 10, lng: Math.round(p.lng * 10) / 10 };
+  setPickMe(false);
+  changed();
+}
+$("meSet").onclick = () => setPickMe(!PICKME);
+$("meClear").onclick = () => setMe(null);
+addEventListener("keydown", (e) => {
+  if (PICKME && e.key === "Escape") {
+    setPickMe(false);
+    e.preventDefault();
+  }
+});
 cv.addEventListener("keydown", (e) => {
   if (MEAS_ON) {
     if (e.key === "Escape" && MEAS) {
@@ -3310,6 +3612,7 @@ $("reset").onclick = (e) => {
   $("tq").value = "";
   syncInputs();
   setMeasure(false);
+  setPickMe(false);
   filterTypes();
   SEL = null;
   HOV = null;

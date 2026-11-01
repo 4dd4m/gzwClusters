@@ -80,6 +80,22 @@
       <p class="dlgnote" data-i18n="nf.note"></p>
       <div class="nflist" id="nfList"></div>
     </dialog>
+    <div class="ctxmenu" id="ctxMenu" role="menu" data-i18n-aria="ctx.aria" hidden>
+      <button type="button" role="menuitem" id="ctxNf"></button>
+      <button type="button" role="menuitem" id="ctxNote"></button>
+    </div>
+    <dialog id="noteDlg" aria-labelledby="noteT">
+      <div class="dlghead"><h2 id="noteT"></h2></div>
+      <form id="noteForm" class="dlgform" novalidate>
+        <label for="noteText" id="noteFor"></label>
+        <textarea id="noteText" rows="4" maxlength="300" data-i18n-placeholder="note.ph"></textarea>
+        <div class="dlgbtns">
+          <button type="button" id="noteDel" class="danger" data-i18n="note.del"></button>
+          <button type="button" id="noteCancel" data-i18n="preset.cancel"></button>
+          <button type="submit" id="noteOk" class="primary"></button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="prDlg" aria-labelledby="prT">
       <div class="dlghead">
         <h2 id="prT" data-i18n="pr.title"></h2>
@@ -184,6 +200,23 @@
             </div>
             <div class="opt">
               <span class="cbspace" aria-hidden="true"></span>
+              <label for="meSet" data-i18n="me.label"></label>
+              <span class="mebtns"
+                ><button type="button" id="meSet" aria-describedby="hMe"></button
+                ><button
+                  type="button"
+                  id="meClear"
+                  data-i18n-title="me.clearTitle"
+                  data-i18n-aria="me.clearTitle"
+                  hidden
+                >
+                  ✕
+                </button></span
+              >
+              <div class="hint wide" id="hMe" role="tooltip" data-i18n-html="me.hint"></div>
+            </div>
+            <div class="opt">
+              <span class="cbspace" aria-hidden="true"></span>
               <label for="r" data-i18n="r.label"></label>
               <span class="num"
                 ><input type="number" id="r" min="150" max="3000" step="25" value="300" aria-describedby="hR" />m</span
@@ -209,7 +242,7 @@
               <span></span>
               <div class="hint wide" id="hGZ" role="tooltip" data-i18n-html="gz.hint"></div>
             </div>
-            <div class="opt">
+            <div class="opt" id="copSRow">
               <input type="checkbox" id="useCopS" aria-describedby="hCopS" />
               <label for="useCopS" data-i18n="copS.label"></label>
               <select id="copStart" data-i18n-aria="copS.aria" data-i18n-title="copS.title"></select>

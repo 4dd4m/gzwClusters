@@ -631,6 +631,39 @@ canvas.measuring {
   max-width: 560px;
   z-index: 2;
 }
+/* a container's note in the map tooltip */
+.tip .tipnote {
+  display: block;
+  margin: 4px 0;
+  padding: 3px 7px;
+  border-left: 3px solid #f3c623;
+  background: rgba(243, 198, 35, 0.14);
+  font-family: var(--body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* the right-click menu of a container, on the map or a stop-list row */
+.ctxmenu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.ctxmenu button {
+  border: 0;
+  border-radius: 3px;
+  padding: 7px 10px;
+  text-align: left;
+}
+.ctxmenu button:is(:hover, :focus-visible) {
+  background: var(--bg);
+}
 .busy {
   position: absolute;
   right: 10px;
@@ -1268,6 +1301,7 @@ dialog::backdrop {
 #presetDlg,
 #presetDelDlg,
 #presetResetDlg,
+#noteDlg,
 #ioDlg {
   width: min(420px, calc(100vw - 32px));
 }
@@ -1320,13 +1354,21 @@ dialog::backdrop {
 .dlgform label {
   font-weight: 600;
 }
-.dlgform input {
+.dlgform :is(input, textarea) {
   padding: 6px 8px;
   font: 0.9rem var(--body);
   color: var(--ink);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 3px;
+}
+.dlgform textarea {
+  resize: vertical;
+  min-height: 6em;
+}
+/* Delete note sits apart, on the left */
+#noteDel {
+  margin-right: auto;
 }
 .dlgform .dlgbtns {
   padding: 10px 0 14px;
@@ -1471,6 +1513,33 @@ td small.bail {
   font: 600 0.68rem var(--body);
   color: var(--ink);
   white-space: nowrap;
+}
+/* Start from my position: Set on map / Move (accent while waiting for the click on the map), and ✕ to clear */
+.mebtns {
+  display: inline-flex;
+  gap: 4px;
+}
+.mebtns button {
+  white-space: nowrap;
+}
+#meSet[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+canvas.picking {
+  cursor: crosshair !important;
+}
+/* a stop's note under its name in the stop list */
+td small.note {
+  display: block;
+  font: 500 0.7rem var(--body);
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+td small.note::before {
+  content: "✎ ";
+  color: #c99a00;
 }
 /* ✕ in the stop list: marks the stop as not found */
 .nfb {
