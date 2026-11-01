@@ -2766,10 +2766,14 @@ function size() {
   const box = $("mapbox"),
     w = box.clientWidth,
     wide = matchMedia("(min-width:1301px)").matches,
-    /* wide screens: the map fills the column to the bottom, under its toolbar (and the box's 1px borders);
+    /* wide screens: the map fills the column to the bottom, under its toolbar (and the box's 1px borders), above the credit
+       line;
        narrower screens keep the map's shape */
     avail = wide
-      ? document.querySelector(".layout").clientHeight - box.querySelector(".maptools").offsetHeight - 3
+      ? document.querySelector(".layout").clientHeight -
+        box.querySelector(".maptools").offsetHeight -
+        3 -
+        ($("mapCredit").offsetHeight + 6)
       : innerHeight - 150,
     h = Math.max(320, wide ? avail : Math.min(w / 1.75, avail));
   /* wide screens: the column scrolls only when the window is too short for the smallest map; otherwise the map fits,
@@ -4110,18 +4114,26 @@ const relayout = () => {
 };
 new ResizeObserver(relayout).observe($("mapbox"));
 addEventListener("resize", relayout);
-/* The map's height is what the column leaves under its toolbar. When the toolbar changes height (its switches wrap
-   differently), only the height is redone and the view kept; left alone, the column would overflow. */
-let toolsH = 0;
-new ResizeObserver(() => {
-  const h = $("mapbox").querySelector(".maptools").offsetHeight;
-  if (h === toolsH) return;
-  toolsH = h;
-  size();
-  V = clampV(V);
-  cancelAnimationFrame(raf);
-  draw();
-}).observe($("mapbox").querySelector(".maptools"));
+/* The map's height is what the column leaves between its toolbar and the credit line. When the toolbar, the credit or the
+   column itself changes height (switches wrap differently, or the header does in another language), only the height is
+   redone and the view kept; left alone, the column would overflow. */
+let toolsH = "";
+{
+  const ro = new ResizeObserver(() => {
+    const h = [$("mapbox").querySelector(".maptools"), $("mapCredit"), document.querySelector(".layout")]
+      .map((e) => e.offsetHeight)
+      .join();
+    if (h === toolsH) return;
+    toolsH = h;
+    size();
+    V = clampV(V);
+    cancelAnimationFrame(raf);
+    draw();
+  });
+  ro.observe($("mapbox").querySelector(".maptools"));
+  ro.observe($("mapCredit"));
+  ro.observe(document.querySelector(".layout"));
+}
 /* ---------- import / export ---------- */
 /* Export saves the parts of this app's browser storage you tick to a dated JSON file. Import reads such a file, whole or
    partial (an older full export too), lists the parts it holds and replaces only the ticked ones, leaving everything else

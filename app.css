@@ -1996,3 +1996,21 @@ td input[type="checkbox"] {
   border-radius: 4px;
   background: var(--paper);
 }
+
+/* the data credit, one line under the map (it may wrap on phones) */
+.mapcredit {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mapcredit a {
+  color: var(--accent);
+}
+@media (max-width: 760px) {
+  .mapcredit {
+    white-space: normal;
+  }
+}

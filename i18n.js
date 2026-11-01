@@ -7,6 +7,8 @@
 const I18N = {
   en: {
     "keys.btn": "Keys",
+    credit:
+      'Map, markers, keys and photos: <a href="https://gzwtacmap.com" target="_blank" rel="noopener">gzwtacmap.com</a> · Trader prices: <a href="https://gzwitems.com" target="_blank" rel="noopener">gzwitems.com</a>',
     "st.containers": "selected containers",
     "st.runs": "routes",
     "st.avg": "avg. leg (m)",
@@ -403,6 +405,8 @@ const I18N = {
 
   hu: {
     "keys.btn": "Kulcsok",
+    credit:
+      'Térkép, markerek, kulcsok és fotók: <a href="https://gzwtacmap.com" target="_blank" rel="noopener">gzwtacmap.com</a> · Kereskedői árak: <a href="https://gzwitems.com" target="_blank" rel="noopener">gzwitems.com</a>',
     "st.containers": "kiválasztott container",
     "st.runs": "útvonal",
     "st.avg": "átl. szakasz (m)",
