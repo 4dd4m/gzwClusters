@@ -2451,7 +2451,11 @@ function detail() {
     d.lastChild.textContent = v;
     det.appendChild(d);
   };
-  /* the start or end point; the line under it explains a COP or your position (a plain LZ needs none) */
+  /* the start and the end point side by side in one row (lzs, first in the details); the line under one explains a COP or
+     your position (a plain LZ needs none) */
+  const lzs = document.createElement("div");
+  lzs.className = "lzs";
+  det.appendChild(lzs);
   const lzRow = (tag, l, d, txt) => {
     const e = document.createElement("div");
     e.className = "lz";
@@ -2465,7 +2469,7 @@ function detail() {
       x.textContent = txt;
       e.appendChild(x);
     }
-    det.appendChild(e);
+    lzs.appendChild(e);
   };
   /* a COP end point may have won over a nearer LZ thanks to the COP advantage: then say which LZ was nearer */
   const endTxt = () => {
@@ -2485,29 +2489,27 @@ function detail() {
     r.A.d,
     r.A.lz.kind === "cop" ? t("det.startCop") : r.A.lz.kind === "me" ? t("det.startMe") : "",
   );
-  kv(t("det.containers"), r.boxes + (r.n > r.boxes ? t("det.doors", { n: r.n - r.boxes }) : ""));
-  kv(t("det.avg"), fm(r.avg) + " m");
-  kv(t("det.path"), fm(r.path) + " m");
-  kv(t("det.total"), fm(r.total) + " m");
-  lzRow(t("det.end"), r.B.lz, r.B.d, r.B.lz === r.A.lz ? "" : endTxt());
-  /* raid checklist progress, with a way to start the route over */
-  const done = r.seq.filter(isLooted).length,
-    prog = document.createElement("div");
-  prog.className = "prog";
-  prog.innerHTML = `<span class="k"></span><span class="v">${done} / ${r.n}</span>`;
-  prog.firstChild.textContent = t("det.looted");
-  if (done) {
+  /* containers: how many are ticked off of all (doors added as stops after it), with ↺ to start the route over */
+  kv(
+    t("det.containers"),
+    `${r.seq.filter((p) => !p.door && isLooted(p)).length} / ${r.boxes}` +
+      (r.n > r.boxes ? t("det.doors", { n: r.n - r.boxes }) : ""),
+  );
+  if (r.seq.some(isLooted)) {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = t("det.clearTicks");
+    b.className = "clrticks";
+    b.textContent = "↺";
     b.title = t("det.clearTicksTitle");
+    b.setAttribute("aria-label", t("det.clearTicks"));
     b.onclick = () => {
       r.seq.forEach((p) => setLooted(p, false));
       lootChanged(r);
     };
-    prog.appendChild(b);
+    det.lastChild.querySelector(".v").appendChild(b);
   }
-  det.appendChild(prog);
+  kv(t("det.avg"), fm(r.avg) + " m");
+  lzRow(t("det.end"), r.B.lz, r.B.d, r.B.lz === r.A.lz ? "" : endTxt());
   /* locked rooms near the walk: tick one to add it as a stop; the ones you have the key for are marked */
   const nearby = nearDoors(r);
   if (nearby.length) {

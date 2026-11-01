@@ -834,6 +834,29 @@ canvas.measuring {
 .det .lz .v {
   font-size: 0.85rem;
 }
+/* start and end side by side in one row: each its tag and distance over its name, and any explanation under that */
+.det .lzs {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.det .lzs .lz {
+  grid-column: auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "k v" "b b";
+  align-content: start;
+  gap: 2px 8px;
+}
+.det .lzs .lz > .k:first-child {
+  grid-area: k;
+}
+.det .lzs .lz > b {
+  grid-area: b;
+}
+.det .lzs .lz > .v {
+  grid-area: v;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -1617,18 +1640,14 @@ dialog::backdrop {
 .seclist input:checked ~ small {
   color: var(--accent);
 }
-/* route panel: raid checklist progress, and keyed doors along the route. The list must not scroll on its own: as a scrolling
-   item of the height-limited details grid it would be squeezed to nothing; the details scroll as a whole instead */
-.det .prog {
-  grid-column: 1/-1;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-.det .prog button {
-  margin-left: auto;
-  padding: 2px 8px;
-  font-size: 0.72rem;
+/* route panel: ↺ after the Containers count (takes the route's looted ticks off), and keyed doors along the route. The door
+   list must not scroll on its own: as a scrolling item of the height-limited details grid it would be squeezed to nothing;
+   the details scroll as a whole instead */
+.det .clrticks {
+  margin-left: 8px;
+  padding: 0 6px;
+  font: 600 0.8rem/1.4 var(--body);
+  vertical-align: middle;
 }
 .det .doors {
   grid-column: 1/-1;
@@ -1698,7 +1717,8 @@ td small.bail {
   display: block;
   font: 600 0.68rem var(--body);
   color: var(--ink);
-  white-space: nowrap;
+  /* wraps inside the stop column, so the table keeps its width and the ✓ / ✕ columns stay in view */
+  white-space: normal;
 }
 /* Start from my position: Set on map / Move (accent while waiting for the click on the map), and ✕ to clear */
 .mebtns {
