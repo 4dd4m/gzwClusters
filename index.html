@@ -25,6 +25,9 @@
         <button type="button" id="nfBtn" class="keysbtn nfbtn" aria-haspopup="dialog" data-i18n-title="nf.btnTitle">
           <i aria-hidden="true">✕</i><span data-i18n="nf.btn"></span><small id="nfCount"></small>
         </button>
+        <button type="button" id="prBtn" class="keysbtn prbtn" aria-haspopup="dialog" data-i18n-title="pr.btnTitle">
+          <i aria-hidden="true">$</i><span data-i18n="pr.btn"></span>
+        </button>
         <div><b id="stContainers">0</b><span data-i18n="st.containers"></span></div>
         <div class="rt"><b id="stRuns">0</b><span data-i18n="st.runs"></span></div>
         <div class="rt"><b id="stAvg">–</b><span data-i18n="st.avg"></span></div>
@@ -76,6 +79,44 @@
       </div>
       <p class="dlgnote" data-i18n="nf.note"></p>
       <div class="nflist" id="nfList"></div>
+    </dialog>
+    <dialog id="prDlg" aria-labelledby="prT">
+      <div class="dlghead">
+        <h2 id="prT" data-i18n="pr.title"></h2>
+        <span class="nfhead"
+          ><a
+            class="btnlink"
+            href="https://gzwitems.com/contribute"
+            target="_blank"
+            rel="noopener"
+            data-i18n="pr.report"
+            data-i18n-title="pr.reportTitle"
+          ></a
+          ><button type="button" id="prClose" data-i18n="close"></button
+        ></span>
+      </div>
+      <p class="dlgnote" data-i18n-html="pr.note"></p>
+      <div class="prbar">
+        <input type="search" id="prQ" data-i18n-placeholder="pr.searchPh" data-i18n-aria="pr.searchAria" />
+        <select id="prCat" data-i18n-aria="pr.catAria"></select>
+        <label><input type="checkbox" id="prFresh" /><span data-i18n="pr.fresh"></span></label>
+        <label><input type="checkbox" id="prZero" /><span data-i18n="pr.zero"></span><small id="prZeroN"></small></label>
+      </div>
+      <p class="prstat" id="prStat" role="status"></p>
+      <div class="prlist" id="prList">
+        <table>
+          <thead>
+            <tr>
+              <th><span class="sr" data-i18n="pr.thIcon"></span></th>
+              <th data-k="name"><button type="button" data-i18n="pr.thItem"></button></th>
+              <th data-k="price"><button type="button" data-i18n="pr.thPrice"></button></th>
+              <th data-k="slot"><button type="button" data-i18n="pr.thSlot" data-i18n-title="pr.thSlotTitle"></button></th>
+              <th data-k="at"><button type="button" data-i18n="pr.thAt"></button></th>
+            </tr>
+          </thead>
+          <tbody id="prRows"></tbody>
+        </table>
+      </div>
     </dialog>
     <dialog id="secDlg" aria-labelledby="secT">
       <div class="dlghead">

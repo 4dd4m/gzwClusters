@@ -1641,6 +1641,187 @@ function renderNF() {
   };
   $("nfCount").textContent = NF.size || "";
 }
+
+/* ---------- trader prices ---------- */
+/* Sell prices from gzwitems.com, a price list players keep up to date (its own Contribute page takes the reports; the dialog
+   links there rather than collecting prices here, so every report lands in one list). Fetched when the dialog first opens,
+   once per page load; nothing is saved. gzwitems bulk-imported the old Fandom wiki on 26 Oct 2026, after Update 0.5 (22 Oct)
+   came out, so a price last set at that import was never checked for 0.5: those show as "old wiki". A price of 0 there
+   means nobody has reported one yet. */
+{
+  const API = "https://gzwitems.com/api/items",
+    WIKI_UNTIL = Date.parse("2026-10-26T11:00:00Z"),
+    dlg = $("prDlg"),
+    rows = $("prRows"),
+    stat = $("prStat"),
+    SORT = { k: "slot", dir: -1 };
+  let PR = null,
+    loading = false,
+    failed = "";
+  const https = (u) => {
+    try {
+      const x = new URL(u);
+      return x.protocol === "https:" ? x.href : "";
+    } catch {
+      return "";
+    }
+  };
+  const item = (o) => {
+    if (!o || typeof o.name !== "string" || !o.name) return null;
+    const w = Math.max(1, Math.round(+o.width) || 1),
+      h = Math.max(1, Math.round(+o.height) || 1),
+      price = Number.isFinite(o.sellPrice) && o.sellPrice > 0 ? Math.round(o.sellPrice) : 0,
+      at = Date.parse(o.lastUpdated) || 0;
+    return {
+      name: o.name,
+      q: o.name.toLowerCase(),
+      cat: typeof o.category === "string" ? o.category : "",
+      price,
+      slot: price && Math.round(price / (w * h)),
+      size: `${w}×${h}`,
+      kg: Number.isFinite(o.weight) && o.weight > 0 ? o.weight : 0,
+      at,
+      wiki: at <= WIKI_UNTIL,
+      img: https(o.imageUrl),
+      url: https(o.url),
+    };
+  };
+  async function load() {
+    loading = true;
+    failed = "";
+    render();
+    const ac = new AbortController(),
+      to = setTimeout(() => ac.abort(), 15000);
+    try {
+      const r = await fetch(API, { signal: ac.signal });
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      const j = await r.json();
+      if (!Array.isArray(j?.items)) throw new Error("unexpected response");
+      PR = { at: Date.now(), items: j.items.map(item).filter(Boolean) };
+      cats();
+    } catch (e) {
+      failed = e.name === "AbortError" ? t("pr.timeout") : e.message;
+    } finally {
+      clearTimeout(to);
+      loading = false;
+    }
+    render();
+  }
+  /* the category picker: every category in the list, with its item count; keeps the choice if it is still there */
+  function cats() {
+    const sel = $("prCat"),
+      was = sel.value,
+      n = new Map();
+    for (const it of PR?.items || []) if (it.cat) n.set(it.cat, (n.get(it.cat) || 0) + 1);
+    sel.textContent = "";
+    sel.add(new Option(t("pr.catAll", { n: PR?.items.length || 0 }), ""));
+    [...n].sort((a, b) => a[0].localeCompare(b[0], locale())).forEach(([c, k]) => sel.add(new Option(`${c} (${k})`, c)));
+    sel.value = n.has(was) ? was : "";
+  }
+  const money = (n) => "$" + n.toLocaleString(locale()),
+    day = (ms) => new Date(ms).toLocaleDateString(locale(), { year: "numeric", month: "short", day: "numeric" });
+  const cmp = {
+    name: (a, b) => a.name.localeCompare(b.name, locale()),
+    price: (a, b) => a.price - b.price,
+    slot: (a, b) => a.slot - b.slot,
+    at: (a, b) => a.at - b.at,
+  };
+  function render() {
+    rows.textContent = "";
+    document.querySelectorAll("#prList th[data-k]").forEach((th) => {
+      if (th.dataset.k === SORT.k) th.setAttribute("aria-sort", SORT.dir > 0 ? "ascending" : "descending");
+      else th.removeAttribute("aria-sort");
+    });
+    if (!PR) {
+      stat.textContent = loading ? t("pr.loading") : failed ? t("pr.failed", { err: failed }) : "";
+      if (failed && !loading) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = t("pr.retry");
+        b.onclick = load;
+        stat.append(" ", b);
+      }
+      return;
+    }
+    const q = $("prQ").value.trim().toLowerCase(),
+      cat = $("prCat").value,
+      fresh = $("prFresh").checked,
+      zero = $("prZero").checked,
+      all = PR.items,
+      list = all
+        .filter((it) => (zero || it.price) && (!fresh || !it.wiki) && (!cat || it.cat === cat) && (!q || it.q.includes(q)))
+        .sort((a, b) => SORT.dir * cmp[SORT.k](a, b) || cmp.name(a, b));
+    $("prZeroN").textContent = all.filter((it) => !it.price).length;
+    stat.textContent = t("pr.stat", {
+      shown: list.length,
+      priced: all.filter((it) => it.price).length,
+      fresh: all.filter((it) => it.price && !it.wiki).length,
+      time: new Date(PR.at).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }),
+    });
+    if (!list.length) {
+      const tr = rows.insertRow(),
+        td = tr.insertCell();
+      td.colSpan = 5;
+      td.className = "empty";
+      td.textContent = t("pr.none");
+      return;
+    }
+    list.forEach((it) => {
+      const tr = rows.insertRow(),
+        ic = tr.insertCell(),
+        nm = tr.insertCell(),
+        pr = tr.insertCell(),
+        sl = tr.insertCell(),
+        up = tr.insertCell();
+      if (it.img) {
+        const im = document.createElement("img");
+        im.alt = "";
+        im.loading = "lazy";
+        /* some icons players added are on imgur, which refuses images to some referring sites */
+        im.referrerPolicy = "no-referrer";
+        im.src = it.img;
+        im.onerror = () => im.remove();
+        ic.appendChild(im);
+      }
+      const a = document.createElement(it.url ? "a" : "b"),
+        sm = document.createElement("small");
+      a.textContent = it.name;
+      if (it.url) {
+        a.href = it.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.title = t("pr.open");
+      }
+      sm.textContent = [it.cat, it.size, it.kg ? `${it.kg.toLocaleString(locale())} kg` : ""].filter(Boolean).join(" · ");
+      nm.append(a, sm);
+      pr.textContent = it.price ? money(it.price) : "–";
+      sl.textContent = it.price ? money(it.slot) : "–";
+      if (!it.price) pr.title = sl.title = t("pr.noPrice");
+      up.textContent = it.wiki ? t("pr.wiki") : day(it.at);
+      up.title = it.wiki ? t("pr.wikiTitle") : t("pr.atTitle", { date: fdate(it.at) });
+      if (it.wiki) up.className = "old";
+    });
+  }
+  document.querySelectorAll("#prList th[data-k] button").forEach(
+    (b) =>
+      (b.onclick = () => {
+        const k = b.parentElement.dataset.k;
+        SORT.dir = SORT.k === k ? -SORT.dir : k === "name" ? 1 : -1;
+        SORT.k = k;
+        render();
+      }),
+  );
+  $("prQ").oninput = $("prCat").onchange = $("prFresh").onchange = $("prZero").onchange = render;
+  $("prBtn").onclick = () => {
+    tip.hidden = true;
+    cats();
+    dlg.showModal();
+    $("prList").scrollTop = 0;
+    if (!PR && !loading) load();
+    else render();
+  };
+  $("prClose").onclick = () => dlg.close();
+}
 function renderRuns() {
   const el = $("runs");
   el.textContent = "";

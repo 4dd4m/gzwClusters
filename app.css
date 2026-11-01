@@ -1551,6 +1551,155 @@ td small.bail {
   font-size: 0.85rem;
   padding: 10px 0;
 }
+/* header button and the Trader prices dialog: search and filters over a table sorted by its column headers */
+.prbtn i {
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 700;
+}
+a.btnlink {
+  display: inline-flex;
+  align-items: center;
+  font: 600 0.78rem var(--body);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 4px 9px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+a.btnlink:hover {
+  background: var(--bg);
+}
+.dlgnote a {
+  color: var(--accent);
+}
+.prbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 14px 0;
+}
+.prbar input[type="search"] {
+  flex: 1 1 220px;
+  width: auto;
+  min-width: 0;
+}
+.prbar select {
+  max-width: 100%;
+  padding: 5px 6px;
+  font: 500 0.85rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.prbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.prbar small {
+  font: 400 0.72rem var(--mono);
+  color: var(--muted);
+}
+.prstat {
+  margin: 0;
+  padding: 8px 14px 0;
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+}
+.prlist {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.prlist tbody tr {
+  cursor: default;
+}
+.prlist th button {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+}
+.prlist th button:hover,
+.prlist th[aria-sort] {
+  color: var(--ink);
+}
+.prlist th[aria-sort="descending"] button::after {
+  content: " ▼";
+}
+.prlist th[aria-sort="ascending"] button::after {
+  content: " ▲";
+}
+.prlist :is(th, td):first-child {
+  width: 46px;
+  padding-left: 14px;
+}
+.prlist :is(th, td):last-child {
+  padding-right: 14px;
+}
+.prlist td:first-child img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.prlist td:nth-child(2) {
+  font: 0.82rem var(--body);
+}
+.prlist td:nth-child(2) :is(a, b) {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.prlist td:nth-child(2) a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prlist td:nth-child(2) small {
+  display: block;
+  font: 0.7rem var(--mono);
+  color: var(--muted);
+}
+.prlist td:nth-child(3),
+.prlist td:nth-child(4) {
+  font-weight: 600;
+}
+.prlist td.old {
+  color: var(--muted);
+  font-style: italic;
+}
+.prlist td.empty {
+  text-align: left;
+  font: 0.85rem var(--body);
+}
+/* phones: the icon column goes, so the name and the three numbers fit */
+@media (max-width: 520px) {
+  .prlist :is(th, td):first-child:not(.empty) {
+    display: none;
+  }
+  .prlist :is(th, td):nth-child(2) {
+    padding-left: 14px;
+  }
+}
+/* text for screen readers only */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 td input[type="checkbox"] {
   vertical-align: middle;
 }
