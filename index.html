@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kokesz Loot Runs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <!-- Text comes from i18n.js (English or Hungarian): data-i18n* attributes name the keys. -->
+  <body>
+    <header>
+      <div>
+        <h1>Kokesz Loot Runs</h1>
+        <p class="sub"><span data-i18n="sub"></span><span class="credit" data-i18n-html="credit"></span></p>
+      </div>
+      <div class="stats">
+        <button type="button" id="keysBtn" class="keysbtn" aria-haspopup="dialog">
+          <img alt="" id="keysIc" /><span data-i18n="keys.btn"></span>
+        </button>
+        <div><b id="stContainers">0</b><span data-i18n="st.containers"></span></div>
+        <div class="rt"><b id="stRuns">0</b><span data-i18n="st.runs"></span></div>
+        <div class="rt"><b id="stAvg">–</b><span data-i18n="st.avg"></span></div>
+        <div class="rt"><b id="stLeft">0</b><span data-i18n="st.left"></span></div>
+        <div class="io">
+          <button type="button" id="importBtn" data-i18n="io.import" data-i18n-title="io.importTitle"></button>
+          <button type="button" id="exportBtn" data-i18n="io.export" data-i18n-title="io.exportTitle"></button>
+          <input type="file" id="importFile" accept=".json,application/json" hidden />
+        </div>
+        <div class="lang" role="radiogroup" aria-label="Language / Nyelv">
+          <button type="button" role="radio" data-lang="en" aria-checked="true" title="English">EN</button
+          ><button type="button" role="radio" data-lang="hu" aria-checked="false" title="Magyar">HU</button>
+        </div>
+      </div>
+    </header>
+    <dialog id="keys" aria-labelledby="keysT">
+      <div class="dlghead">
+        <h2 id="keysT" data-i18n="keys.title"></h2>
+        <button type="button" id="keysClose" data-i18n="close"></button>
+      </div>
+      <div class="ktabs" id="ktabs" role="tablist" data-i18n-aria="keys.tabs">
+        <button type="button" role="tab" id="ktab1" aria-controls="kpan1">
+          <span data-i18n="keys.tab1"></span><small id="kc1"></small>
+        </button>
+        <button type="button" role="tab" id="ktab2" aria-controls="kpan2">
+          <span data-i18n="keys.tab2"></span><small id="kc2"></small>
+        </button>
+      </div>
+      <p class="dlgnote" id="keysNote"></p>
+      <p class="dlgnote kroute" id="kRoute" hidden><i aria-hidden="true"></i><span></span></p>
+      <div class="keygrid" id="kpan1" role="tabpanel" aria-labelledby="ktab1"></div>
+      <div class="keygrid" id="kpan2" role="tabpanel" aria-labelledby="ktab2"></div>
+      <div class="kpop" id="kpop" hidden>
+        <canvas></canvas>
+        <div class="kprow">
+          <img alt="" />
+          <div><b></b><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="secDlg" aria-labelledby="secT">
+      <div class="dlghead">
+        <h2 id="secT" data-i18n="sec.title"></h2>
+        <button type="button" id="secClose" data-i18n="close"></button>
+      </div>
+      <p class="dlgnote" data-i18n="sec.note"></p>
+      <div class="seclist" id="secList"></div>
+    </dialog>
+    <dialog id="clearDlg" aria-labelledby="clearT" aria-describedby="clearD">
+      <div class="dlghead"><h2 id="clearT" data-i18n="clear.title"></h2></div>
+      <p class="confirmtxt" id="clearD" data-i18n="clear.text"></p>
+      <div class="dlgbtns">
+        <button type="button" id="clearNo" data-i18n="clear.no"></button>
+        <button type="button" id="clearYes" class="danger" data-i18n="clear.yes"></button>
+      </div>
+    </dialog>
+    <dialog id="presetDlg" aria-labelledby="presetT">
+      <div class="dlghead"><h2 id="presetT" data-i18n="preset.newTitle"></h2></div>
+      <form id="presetForm" class="dlgform" novalidate>
+        <label for="presetName" data-i18n="preset.nameLabel"></label>
+        <input type="text" id="presetName" maxlength="40" autocomplete="off" data-i18n-placeholder="preset.namePh" />
+        <p class="dlgerr" id="presetErr" role="alert" hidden></p>
+        <div class="dlgbtns">
+          <button type="button" id="presetCancel" data-i18n="preset.cancel"></button>
+          <button type="submit" id="presetOk" class="primary" data-i18n="preset.create"></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="presetDelDlg" aria-labelledby="presetDelT" aria-describedby="presetDelD">
+      <div class="dlghead"><h2 id="presetDelT" data-i18n="preset.delTitle"></h2></div>
+      <p class="confirmtxt" id="presetDelD"></p>
+      <div class="dlgbtns">
+        <button type="button" id="presetDelNo" data-i18n="preset.no"></button>
+        <button type="button" id="presetDelYes" class="danger" data-i18n="preset.yes"></button>
+      </div>
+    </dialog>
+    <dialog id="ioDlg" aria-labelledby="ioT" aria-describedby="ioD">
+      <div class="dlghead"><h2 id="ioT"></h2></div>
+      <p class="confirmtxt" id="ioD"></p>
+      <div class="dlgbtns">
+        <button type="button" id="ioNo"></button>
+        <button type="button" id="ioYes" class="primary" data-i18n="preset.yes"></button>
+      </div>
+    </dialog>
+    <dialog id="presetResetDlg" aria-labelledby="presetResetT" aria-describedby="presetResetD">
+      <div class="dlghead"><h2 id="presetResetT"></h2></div>
+      <p class="confirmtxt" id="presetResetD"></p>
+      <div class="dlgbtns">
+        <button type="button" id="presetResetNo" data-i18n="preset.no"></button>
+        <button type="button" id="presetResetYes" class="danger" data-i18n="preset.yes"></button>
+      </div>
+    </dialog>
+
+    <div class="layout">
+      <aside class="filters">
+        <section class="panel">
+          <h2 data-i18n="set.title"></h2>
+          <div class="set">
+            <div class="opt">
+              <input type="checkbox" id="browse" aria-describedby="hBrowse" />
+              <label for="browse" data-i18n="browse.label"></label>
+              <span></span>
+              <div class="hint wide" id="hBrowse" role="tooltip" data-i18n-html="browse.hint"></div>
+            </div>
+            <div class="opt">
+              <span class="cbspace" aria-hidden="true"></span>
+              <label for="r" data-i18n="r.label"></label>
+              <span class="num"
+                ><input type="number" id="r" min="150" max="3000" step="25" value="300" aria-describedby="hR" />m</span
+              >
+              <div class="hint wide" id="hR" role="tooltip" data-i18n-html="r.hint"></div>
+              <span id="rEst" class="rest"></span>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="useQ" checked aria-describedby="hQ" />
+              <label for="useQ" data-i18n="q.label"></label>
+              <span class="num"
+                ><input type="number" id="q" min="1" max="500" step="1" value="3" data-i18n-aria="q.aria" /><span
+                  aria-hidden="true"
+                  style="visibility: hidden"
+                  >m</span
+                ></span
+              >
+              <div class="hint wide" id="hQ" role="tooltip" data-i18n-html="q.hint"></div>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="useGZ" aria-describedby="hGZ" />
+              <label for="useGZ" data-i18n="gz.label"></label>
+              <span></span>
+              <div class="hint wide" id="hGZ" role="tooltip" data-i18n-html="gz.hint"></div>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="useCopS" aria-describedby="hCopS" />
+              <label for="useCopS" data-i18n="copS.label"></label>
+              <select id="copStart" data-i18n-aria="copS.aria" data-i18n-title="copS.title"></select>
+              <div class="hint wide" id="hCopS" role="tooltip" data-i18n-html="copS.hint"></div>
+            </div>
+            <div class="opt">
+              <input type="checkbox" id="useCopE" aria-describedby="hCopE" />
+              <label for="useCopE" data-i18n="copE.label"></label>
+              <span class="num"
+                ><input
+                  type="number"
+                  id="copBias"
+                  min="0"
+                  max="5000"
+                  step="50"
+                  value="200"
+                  data-i18n-aria="copBias.aria"
+                />m</span
+              >
+              <div class="hint wide" id="hCopE" role="tooltip" data-i18n-html="copE.hint"></div>
+            </div>
+            <div class="opt">
+              <span class="cbspace" aria-hidden="true"></span>
+              <span><button type="button" id="secBtn" aria-haspopup="dialog" aria-describedby="hSec"></button></span>
+              <span></span>
+              <div class="hint wide" id="hSec" role="tooltip" data-i18n-html="sec.hint"></div>
+            </div>
+            <div class="reset">
+              <label class="switch" data-i18n-title="hints.title"
+                ><input type="checkbox" role="switch" id="hints" checked /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="hints.label"></span
+              ></label>
+              <span class="note-reset" id="savedNote" hidden data-i18n="reset.done"></span
+              ><button type="button" id="reset" data-i18n="reset.btn" data-i18n-title="reset.title"></button>
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <h2 data-i18n="preset.title"></h2>
+          <div class="presets">
+            <select id="preset" data-i18n-aria="preset.selectAria" aria-describedby="hPreset"></select>
+            <div class="prow">
+              <button type="button" id="presetDel" data-i18n="preset.delete"></button>
+              <button type="button" id="presetReset" aria-haspopup="dialog" data-i18n="preset.reset"></button>
+              <button type="button" id="presetNew" aria-haspopup="dialog" data-i18n="preset.new"></button>
+            </div>
+            <div class="hint wide" id="hPreset" role="tooltip" data-i18n-html="preset.hint"></div>
+          </div>
+        </section>
+        <section class="panel">
+          <h2><span data-i18n="ty.title"></span> <small id="tyCount"></small></h2>
+          <div class="tsearch">
+            <input type="search" id="tq" data-i18n-placeholder="ty.searchPh" data-i18n-aria="ty.searchAria" />
+            <div class="tsel"><button type="button" id="tyNone" data-i18n="ty.none"></button></div>
+            <div class="chips" id="chips"></div>
+          </div>
+          <div class="types" id="types"></div>
+        </section>
+      </aside>
+
+      <div class="mapcol">
+        <div class="mapbox" id="mapbox">
+          <div class="maptools">
+            <div class="legend">
+              <span class="rt"><span class="ln"></span><span data-i18n="lg.route"></span></span>
+              <span class="rt"><span class="ln d"></span><span data-i18n="lg.lzleg"></span></span>
+              <span id="lgLz"></span>
+            </div>
+            <div class="tools">
+              <label class="switch" data-i18n-title="sw.measureTitle"
+                ><input type="checkbox" role="switch" id="measure" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.measure"></span></label
+              ><label class="switch" data-i18n-title="sw.zonesTitle"
+                ><input type="checkbox" role="switch" id="zoneB" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.zones"></span></label
+              ><label class="switch rt"
+                ><input type="checkbox" role="switch" id="legNum" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.legNum"></span></label
+              ><label class="switch rt"
+                ><input type="checkbox" role="switch" id="legLen" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.legLen"></span></label
+              ><label class="switch rt"
+                ><input type="checkbox" role="switch" id="legHead" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.legHead"></span></label
+              ><label class="switch"
+                ><input type="checkbox" role="switch" id="poiNames" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.poi"></span
+              ></label>
+            </div>
+            <button id="full" type="button" data-i18n="full"></button>
+          </div>
+          <canvas id="cv" tabindex="0" data-i18n-aria="cv.aria"></canvas>
+          <div class="zoomctl">
+            <button type="button" id="zIn" data-i18n-title="zoom.inTitle" data-i18n-aria="zoom.in">+</button
+            ><button type="button" id="zOut" data-i18n-title="zoom.outTitle" data-i18n-aria="zoom.out">−</button>
+          </div>
+          <div class="zlvl" id="zlvl"></div>
+          <div class="mhint" id="mhint" role="status" hidden></div>
+          <div class="tip" id="tip" hidden></div>
+          <div class="busy" id="busy" hidden data-i18n="busy"></div>
+        </div>
+      </div>
+
+      <aside class="right">
+        <section class="panel">
+          <h2><span data-i18n="runs.title"></span> <small data-i18n="runs.sub"></small></h2>
+          <div class="runs" id="runs"></div>
+        </section>
+        <section class="panel">
+          <h2>
+            <span id="dT"></span
+            ><label class="inv" data-i18n-title="inv.title"
+              ><input type="checkbox" id="inv" /> <span data-i18n="inv.label"></span
+            ></label>
+          </h2>
+          <div class="det" id="det"></div>
+          <div class="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th data-i18n="th.stop"></th>
+                  <th data-i18n="th.leg"></th>
+                  <th data-i18n="th.total"></th>
+                  <th data-i18n-title="th.looted">✓</th>
+                </tr>
+              </thead>
+              <tbody id="wp"></tbody>
+            </table>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <script src="i18n.js"></script>
+    <script src="data.js"></script>
+    <script src="planner.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

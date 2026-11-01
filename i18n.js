@@ -1,0 +1,464 @@
+/* UI text in English (the default) and Hungarian.
+   Static text in index.html names its key: data-i18n (text), data-i18n-html (markup, for the explanations),
+   data-i18n-title / data-i18n-aria / data-i18n-placeholder (attributes). app.js builds the rest with t(key, vars).
+   A value is a string with {name} placeholders, or a function of the vars where plurals differ.
+   Names from the map data (container types, sectors, landing zones, COPs, keys) are not translated.
+   Loaded before data.js, so the page shows the saved language from the first paint. */
+const I18N = {
+  en: {
+    sub: "Pick the containers you want. The planner groups them into routes, puts each route in the shortest straight-line order, and starts it from the nearer landing zone.",
+    credit: 'Data, map and icons from <a href="https://gzwtacmap.com" target="_blank" rel="noopener">gzwtacmap.com</a>',
+    "keys.btn": "Keys",
+    "st.containers": "selected containers",
+    "st.runs": "routes",
+    "st.avg": "avg. leg (m)",
+    "st.left": "left out",
+    close: "Close",
+
+    "keys.title": "Keys",
+    "keys.tabs": "Keys view",
+    "keys.tab1": "Keys by sector",
+    "keys.tab2": "My keys",
+    "keys.routeHl": (v) =>
+      `Highlighted in yellow and listed first: the ${v.many ? "sectors" : "sector"} of the selected route (${v.route}).`,
+    "keys.routeNone": "The sector of the selected route ({route}) has no key-locked doors.",
+    "keys.empty": "You haven't marked any keys yet. Tick the keys you have on the My keys tab.",
+    "keys.emptyBtn": "My keys",
+    "keys.count": (v) => `${v.n} ${v.n === 1 ? "key" : "keys"}`,
+    "keys.none": "You have no keys for this sector.",
+    "keys.note1": "Only the keys you marked, by sector, with each key's picture.",
+    "keys.note2": "Tick the keys you have. The browser remembers them, and the Keys by sector tab shows only these.",
+    "keys.noteTail": " Hover over a key to see its door on the map. Key data and pictures: gzwtacmap.com.",
+    "keys.nearestLz": "Nearest LZ: {lz} · {d} m, heading {h} from there",
+    "keys.noDoor": "Its door is not marked on the map.",
+    "keys.wide": "{w} wide",
+
+    "sec.title": "Forbidden sectors",
+    "sec.note":
+      "Tick the sectors where you don't want routes. A route belongs to the sector holding most of its stops; a route from an allowed sector can still reach into a forbidden one. Ground Zero is handled by the “Include Ground Zero” setting.",
+    "sec.routes": (v) => `${v.n} ${v.n === 1 ? "route" : "routes"}`,
+    "sec.dropped": (v) => `${v.n} ${v.n === 1 ? "route" : "routes"} dropped`,
+
+    "clear.title": "Clear all",
+    "clear.text": "Do you really want to clear them? The current routes will be lost.",
+    "clear.no": "Cancel",
+    "clear.yes": "Clear",
+
+    "set.title": "Route settings",
+    "browse.label": "Browse only",
+    "browse.hint":
+      "<p><b>Shows only the selected containers on the map, without routes.</b> Useful when you just want to see where the containers are.</p><p><b>On:</b> the selected route is cleared, routes are hidden, the routes panel on the right slides out and the map takes its place. Every selected container shows the same, including the ones the Min. quantity would leave out.</p><p><b>Off:</b> the planner starts over: it recalculates the routes with the current settings and shows the whole map.</p>",
+    "r.label": "Grouping radius",
+    "r.hint":
+      '<p><b>Containers closer to each other than this end up in one route.</b> The link is chained: if A–B and B–C are both within the radius, A, B and C form one route even if A and C are far apart. Minimum 150 m.</p><p><b>Too small:</b> many containers stay alone and are dropped by the Min. quantity (the “left out” count at the top grows).</p><p><b>Too large:</b> groups merge into one or two very long routes across the map. E.g. Duffle Bag gives 34 routes at 300 m (the longest 4.9 km), but a single 88 km route at 500 m.</p><p><b>Recommended settings</b> (with Min. quantity 3):</p><ul><li>All containers at once: 150 m</li><li>A common type (e.g. Duffle Bag, Ammo Box, Tool Box) or several types together: 200–300 m</li><li>A rare, valuable container (e.g. Safe): 250–300 m, with Min. quantity set to 1–2</li><li>A sparse type (e.g. Building Material Crate, Jewelry Box): 400–500 m</li></ul><p style="margin: 5px 0 0">A good starting point is the <b>Optimal ≈</b> band below: it is worked out for the selected types and the Min. quantity, and its button sets the radius to the middle of the band.</p>',
+    "q.label": "Min. quantity",
+    "q.aria": "Minimum containers per route",
+    "q.hint":
+      "<p><b>Minimum number of containers in a group.</b> Groups with fewer containers are left out. Always a whole number.</p><p><b>One type selected:</b> only that type counts.</p><p><b>Several types selected:</b> the selected types count together, e.g. 1 Safe + 2 Duffle Bags = 3. A rare container can get in this way if commoner ones are near it; if it stands alone, it is left out.</p><p><b>Recommended settings:</b></p><ul><li>General default: 3</li><li>A rare, valuable container (e.g. Safe): 1–2, so none is left out</li><li>A sparse type (e.g. Building Material Crate, Jewelry Box): 2–3; if many are left out, increase the radius instead</li><li>A dense type or several types together: 4–5</li></ul>",
+    "gz.label": "Include Ground Zero",
+    "gz.hint":
+      "<p><b>Ground Zero is the harder, high-level area in the middle of the map.</b> It has many valuable containers but is more dangerous, so it is left out by default.</p><p><b>Off (default):</b> containers inside Ground Zero are not shown on the map and do not go into routes. Its 4 landing zones (Tango 1–2, Sierra 1–2) cannot be start or end points either, so groups at the edge of GZ get an LZ outside it.</p><p><b>On:</b> GZ containers join the groups too, and the 4 GZ LZs can be start and end points. Groups may then join up across GZ, so routes in neighbouring areas can get longer.</p><p><b>When to switch it on:</b> when you are ready for GZ, have a task there, or most of the type you are after is there.</p>",
+    "copS.label": "COP as start point",
+    "copS.aria": "Starting COP",
+    "copS.title": "Which COP you start from",
+    "copS.hint":
+      "<p><b>COP (Combat Outpost): 33 small bases scattered over the map.</b> This setting only affects the <b>start</b> of a route.</p><p><b>Off (default):</b> every route starts at a landing zone (LZ), i.e. you arrive from base by helicopter.</p><p><b>On:</b> pick the COP you are at in the list on the right (alphabetical). Every route starts at that one COP, not at an LZ or another COP. The ranking then favours routes near the COP, because the walk from the COP to the first stop counts towards the length.</p><p><b>When to switch it on:</b> when you spawn at a particular COP. If you start from base, leave it off, since from there you always arrive at an LZ.</p>",
+    "copE.label": "COP as end point",
+    "copBias.aria": "COP advantage in metres: how much farther than the nearest LZ a COP may be",
+    "copE.hint":
+      "<p>This setting only affects the <b>end</b> of a route: where to go after the last stop.</p><p><b>Off (default):</b> the route ends at the LZ nearest to the last stop, where you extract by helicopter.</p><p><b>On:</b> the route can also end at a COP, so you can carry on with the next run from there instead of waiting for a helicopter.</p><p><b>COP advantage (the number next to it):</b> a COP is chosen even if it is up to this many metres farther than the nearest LZ. E.g. at 200 m, a COP 550 m away is chosen over an LZ 400 m away. 0: always the nearer point; a large value (e.g. 3000): almost always a COP.</p><p><b>How far is a couple of hundred metres?</b> An average player covers roughly 200–300 m in a minute of running, so the 200 m default is about a minute's run. This is an estimate: the game publishes no exact speeds, and carry weight matters a lot (under 20 kg you can sprint longer, over 33 kg you run out of breath quickly). To find your own pace, run for a minute in the game and measure the distance with the <b>Measure</b> tool.</p><p><b>The two settings are independent:</b> e.g. with only the end point on, you start at an LZ and finish at a COP. When choosing the direction, the planner weighs the walk in and the walk out together. A COP is never a stop, only a start or end point, and <b>Reverse direction</b> follows these settings too.</p>",
+    "sec.btn": "Forbidden sectors",
+    "sec.hint":
+      "<p><b>Sectors where you don't want routes.</b> The button opens a list where you tick them.</p><p><b>How it works:</b> every route belongs to the sector holding most of its stops, and is named after it (e.g. Tiger Bay 1). Routes belonging to a forbidden sector are not made, and their containers show faded on the map. A route from an allowed sector can still reach into a forbidden one if some of its stops are there.</p><p>Ground Zero is handled by the <b>Include Ground Zero</b> setting.</p>",
+    "hints.label": "Help",
+    "hints.title": "When on, each setting's explanation shows when you hover over it; when off, they stay hidden.",
+    "reset.btn": "Reset",
+    "reset.title":
+      "Settings, selected container types and the route are saved in this browser. Reset clears the selection and puts the settings back to their defaults.",
+    "reset.armed": "Click again to reset",
+    "reset.done": "Settings reset.",
+    "preset.title": "Presets",
+    "preset.none": "No preset",
+    "preset.selectAria": "Preset",
+    "preset.hint":
+      "<p><b>Named copies of your route setup:</b> the route settings, the selected container types, the forbidden sectors, reverse direction, doors added as stops and the selected route.</p><p><b>While a preset is selected,</b> every change is saved into it. Picking another preset loads it and plans its routes.</p><p><b>No preset</b> keeps the current routes, but saves into no preset.</p>",
+    "preset.delete": "Delete",
+    "preset.reset": "Reset",
+    "preset.resetTitle": "Reset preset",
+    "preset.resetText":
+      "This resets the preset “{name}”: its route settings, container types, forbidden sectors and selected route go back to their defaults. Your other presets, your keys and the rest of your data stay as they are.",
+    "preset.resetNoneTitle": "Reset route settings",
+    "preset.resetNoneText":
+      "This resets the current route settings: the container types, the settings, the forbidden sectors and the selected route go back to their defaults. Your presets, your keys, the language and the rest of your data stay as they are.",
+    "preset.new": "Create new preset",
+    "preset.newTitle": "Create new preset",
+    "preset.nameLabel": "Preset name",
+    "preset.namePh": "e.g. Tiger Bay safes",
+    "preset.create": "Create",
+    "preset.cancel": "Cancel",
+    "preset.errDup": "A preset with this name already exists.",
+    "preset.delTitle": "Delete preset",
+    "preset.delText": "Delete the preset “{name}”? This cannot be undone.",
+    "preset.yes": "Yes",
+    "preset.no": "No",
+    "io.import": "Import",
+    "io.export": "Export",
+    "io.importTitle": "Load settings, presets, owned keys and language from an exported file",
+    "io.exportTitle": "Save your settings, presets, owned keys and language to a file",
+    "io.importConfirm": "Import",
+    "io.importText":
+      "Import “{name}” (exported {date})? It replaces your current settings, presets, owned keys, raid ticks and language, then reloads the page.",
+    "io.errTitle": "Import failed",
+    "io.errText": "“{name}” is not a Kokesz Loot Runs export file.",
+    "io.storeErr": "The browser did not allow saving the data.",
+    "io.ok": "OK",
+    "est.none": "No radius up to 2.5 km gives a group of {q}+ containers.",
+    "est.band": "Optimal ≈ <b>{lo}–{hi} m</b> · up to {peak} routes",
+    "est.btn": "Use {mid} m",
+    "est.title": "Within the optimal band you get at least 80% of the most {q}+ container routes any radius gives",
+
+    "ty.title": "Container types",
+    "ty.searchPh": "Search types, e.g. safe, ammo",
+    "ty.searchAria": "Search container types",
+    "ty.none": "Clear all",
+    "grp.Containers": "Containers",
+    "grp.Points of interest": "Points of interest",
+    "grp.General": "General",
+    "grp.all": "All",
+    "grp.none": "None",
+    "ty.show": "Show {n} on the map",
+    "ty.add": "Add {n} to the routes",
+    "ty.remove": "Remove {n}",
+    "ty.nomatch": "No container type matches “{q}”.",
+
+    "lg.route": "Route",
+    "lg.lzleg": "LZ leg",
+    "sw.measure": "Measure",
+    "sw.measureTitle":
+      "While on, the map is locked: the 1st click sets the start, the 2nd the end, the 3rd clears the measurement.",
+    "sw.zones": "Zone borders",
+    "sw.zonesTitle": "Borders between zones (e.g. Blue Lagoon, YBL-1) as dashed lines.",
+    "sw.legNum": "Stop numbers",
+    "sw.legLen": "Leg length",
+    "sw.legHead": "Leg heading",
+    "sw.poi": "POI names",
+    full: "Full map",
+    "cv.aria":
+      "Satellite map of Lamang with the selected containers and the planned routes. Drag to pan, scroll to zoom.",
+    "zoom.in": "Zoom in",
+    "zoom.inTitle": "Zoom in (+)",
+    "zoom.out": "Zoom out",
+    "zoom.outTitle": "Zoom out (−)",
+    zlvl: "{w} wide view",
+    busy: "Planning routes…",
+    "meas.start": "Measure: click the start point",
+    "meas.end": "Click the end point",
+    "meas.clear": "Click again to clear the measurement",
+    "map.start": "START",
+    "map.end": "END",
+    "map.startEnd": "START + END",
+    "tip.door": "{d} m from the route · click to add it as a stop",
+    "tip.lzStart": "Start of {route}, {d} m to the first stop",
+    "tip.lzEnd": "End of {route}, {d} m from the last stop",
+    "tip.keyDoor": "Key-locked door",
+    "tip.key": (v) => `Key: ${v.name}${v.own ? " (you have it)" : ""}`,
+    "tip.stop": (v) => `${v.route}, stop ${v.k} / ${v.n}${v.looted ? " · looted ✓" : ""}`,
+    "tip.prev": "{d} m from the previous ({from})",
+    "tip.prevStop": "stop {k}",
+    "tip.copStart": (v) => `COP: the chosen starting COP${v.alsoEnd ? ", also a possible end point" : ""}`,
+    "tip.copEnd": "COP: possible end point, not a stop",
+    "tip.copShown": "COP (shown only, not part of the routes)",
+    "tip.nosec": "Not on a route (forbidden sector: {s})",
+    "tip.left": "Not on a route (its group is below the minimum)",
+
+    "runs.title": "Routes",
+    "runs.sub": "best first, by metres per container",
+    "runs.browse": "Browse only: routes are hidden. Switch it off to plan routes.",
+    "runs.allForbidden":
+      "Every route would fall in a forbidden sector. Allow a sector with the Forbidden sectors button.",
+    "runs.belowMin": "No group reaches the minimum quantity. Lower it, or increase the radius.",
+    "runs.copOnly": "COPs are only shown on the map. Tick a container or POI type to plan routes.",
+    "runs.pick": "Pick one or more container types on the left to plan routes.",
+    "runs.meta": (v) =>
+      `${v.boxes} ${v.boxes === 1 ? "container" : "containers"}${v.doors ? ` + ${v.doors} ${v.doors === 1 ? "door" : "doors"}` : ""} · ${v.per} m/container · avg. leg ${v.avg} m · ${v.lz}${v.done ? ` · ${v.done}/${v.n} done` : ""}`,
+    "route.near": "near {a}",
+    "route.wild": "Open terrain",
+
+    "det.route": "Route",
+    "det.none": "No route yet.",
+    "inv.label": "Reverse direction",
+    "inv.title": "Walks the route the other way round, with the start and end points of its other end.",
+    "det.start": "Start",
+    "det.end": "End",
+    "det.startCop": "The chosen starting COP. Spawn here and walk to the first stop.",
+    "det.startLz": "The LZ nearest to the first stop. Land here.",
+    "det.endSame": (v) => `The same ${v.cop ? "COP" : "LZ"} is also nearest to the last stop.`,
+    "det.endLz": "The LZ nearest to the last stop, to extract or go on to the next route.",
+    "det.endCopBias":
+      "COP: carry on to the next run on foot from here. {lz} is nearer ({d} m), but the COP advantage ({bias} m) makes this the goal.",
+    "det.endCop": "The COP nearest to the last stop: carry on to the next run on foot from here.",
+    "det.containers": "Containers",
+    "det.doors": (v) => ` + ${v.n} ${v.n === 1 ? "door" : "doors"}`,
+    "det.avg": "Avg. leg",
+    "det.path": "Between stops",
+    "det.total": "Start to last stop",
+    "det.looted": "Looted",
+    "det.clearTicks": "Clear ticks",
+    "det.clearTicksTitle": "Marks every stop of the route as not looted again, e.g. for a new raid",
+    "doors.title": "Key-locked doors along the route <small>within {near} m</small>",
+    "doors.stopTitle": "Add to the route as a stop",
+    "doors.stop": "stop",
+    "doors.own": "have it",
+    "doors.ownTitle": "You have this key (Keys → My keys)",
+    "th.stop": "Stop",
+    "th.leg": "leg m",
+    "th.total": "total m",
+    "th.looted": "Looted",
+    "row.looted": "Looted: {name}",
+  },
+
+  hu: {
+    sub: "Válaszd ki a kívánt containereket. A tervező útvonalakba csoportosítja őket, mindegyiket a legrövidebb légvonalbeli sorrendbe rendezi, és a közelebbi landing zone-tól indítja.",
+    credit:
+      'Adatok, térkép és ikonok: <a href="https://gzwtacmap.com" target="_blank" rel="noopener">gzwtacmap.com</a>',
+    "keys.btn": "Kulcsok",
+    "st.containers": "kiválasztott container",
+    "st.runs": "útvonal",
+    "st.avg": "átl. szakasz (m)",
+    "st.left": "kimaradt",
+    close: "Bezárás",
+
+    "keys.title": "Kulcsok",
+    "keys.tabs": "Kulcsok nézet",
+    "keys.tab1": "Kulcsok szektoronként",
+    "keys.tab2": "Saját kulcsaim",
+    "keys.routeHl": (v) =>
+      `A kiválasztott útvonal (${v.route}) ${v.many ? "szektorai" : "szektora"} sárgával kiemelve, elöl.`,
+    "keys.routeNone": "A kiválasztott útvonal ({route}) szektorában nincs kulcsos ajtó.",
+    "keys.empty": "Még nem jelöltél meg kulcsot. A Saját kulcsaim fülön jelöld be, melyik kulcsaid vannak meg.",
+    "keys.emptyBtn": "Saját kulcsaim",
+    "keys.count": "{n} kulcs",
+    "keys.none": "Nincs kulcsod ehhez a szektorhoz.",
+    "keys.note1": "Csak a megjelölt kulcsaid, szektoronként, a kulcs képével.",
+    "keys.note2":
+      "Jelöld be, melyik kulcsaid vannak meg. A böngésző megjegyzi őket, és a Kulcsok szektoronként fül csak ezeket mutatja.",
+    "keys.noteTail":
+      " Vidd az egeret egy kulcs fölé, és megmutatja az ajtaját a térképen. Kulcsadatok és képek: gzwtacmap.com.",
+    "keys.nearestLz": "Legközelebbi LZ: {lz} · {d} m, onnan {h}",
+    "keys.noDoor": "Az ajtaja nincs jelölve a térképen.",
+    "keys.wide": "{w} széles",
+
+    "sec.title": "Tiltott szektorok",
+    "sec.note":
+      "Jelöld be a szektorokat, ahol nem akarsz útvonalat. Egy útvonal abba a szektorba tartozik, ahol a legtöbb megállója van; egy engedélyezett szektor útvonala ettől még átnyúlhat egy tiltottba. A Ground Zerót a „Ground Zero bevonása” beállítás kezeli.",
+    "sec.routes": "{n} útvonal",
+    "sec.dropped": "{n} útvonal kimarad",
+
+    "clear.title": "Összes törlése",
+    "clear.text": "Valóban törölni szeretnéd? A jelenlegi útvonalak elvesznek.",
+    "clear.no": "Mégse",
+    "clear.yes": "Törlés",
+
+    "set.title": "Útvonal-beállítások",
+    "browse.label": "Csak böngészés",
+    "browse.hint":
+      "<p><b>Csak a kiválasztott containereket mutatja a térképen, útvonalak nélkül.</b> Akkor hasznos, ha csak azt nézed, hol vannak az egyes containerek.</p><p><b>Bekapcsolva:</b> a kijelölt útvonal törlődik, az útvonalak nem látszanak, a jobb oldali útvonal-panel kiúszik jobbra, és a térkép kitölti a helyét. Minden kiválasztott container egyformán látszik, azok is, amelyek a Min. mennyiség miatt kimaradnának.</p><p><b>Kikapcsolva:</b> a tervező elölről kezdi: a jelenlegi beállításokkal újraszámolja az útvonalakat, és a teljes térképet mutatja.</p>",
+    "r.label": "Csoportosítási sugár",
+    "r.hint":
+      '<p><b>Az egymástól ennél közelebb lévő containerek egy útvonalba kerülnek.</b> A kapcsolat láncszerű: ha A–B és B–C is a sugáron belül van, A, B és C egy útvonal lesz, akkor is, ha A és C messze vannak egymástól. Minimum 150 m.</p><p><b>Túl kicsi:</b> sok container egyedül marad, és a Min. mennyiség miatt kimarad (fent nő a „kimaradt” szám).</p><p><b>Túl nagy:</b> a csoportok összeérnek, és egy-két nagyon hosszú, a térképen átívelő útvonal lesz. Pl. Duffle Bag 300 m-nél 34 útvonal (a leghosszabb 4,9 km), 500 m-nél egyetlen 88 km-es útvonal.</p><p><b>Ajánlott beállítások</b> (Min. mennyiség 3 mellett):</p><ul><li>Minden container egyszerre: 150 m</li><li>Gyakori típus (pl. Duffle Bag, Ammo Box, Tool Box) vagy több típus együtt: 200–300 m</li><li>Ritka, értékes container (pl. Safe): 250–300 m, a Min. mennyiséget pedig vedd 1–2-re</li><li>Egy ritkás típus (pl. Building Material Crate, Jewelry Box): 400–500 m</li></ul><p style="margin: 5px 0 0">Kiindulásnak jó az alatta lévő <b>Optimális ≈</b> sáv: a kiválasztott típusokra és a Min. mennyiségre számolódik, a gombja a sáv közepére állítja a sugarat.</p>',
+    "q.label": "Min. mennyiség",
+    "q.aria": "Útvonalankénti minimális container szám",
+    "q.hint":
+      "<p><b>Minimális containerszám egy csoportban.</b> Az ennél kevesebb containert tartalmazó csoportok kimaradnak. Mindig egész szám.</p><p><b>Egy típus kiválasztva:</b> csak az adott típus darabjai számítanak.</p><p><b>Több típus kiválasztva:</b> a kiválasztott típusok együtt számítanak, pl. 1 Safe + 2 Duffle Bag = 3. Egy ritka container így bekerülhet, ha gyakoribbak vannak a közelében; ha viszont egyedül áll, kimarad.</p><p><b>Ajánlott beállítások:</b></p><ul><li>Általános alapérték: 3</li><li>Ritka, értékes container (pl. Safe): 1–2, hogy egy se maradjon ki</li><li>Egy ritkás típus (pl. Building Material Crate, Jewelry Box): 2–3; ha sok kimarad, inkább a sugarat növeld</li><li>Sűrű típus vagy több típus együtt: 4–5</li></ul>",
+    "gz.label": "Ground Zero bevonása",
+    "gz.hint":
+      "<p><b>Ground Zero a térkép közepén lévő, nehezebb, magas szintű terület.</b> Sok értékes container van itt, de a veszély is nagyobb, ezért alapból ki van hagyva.</p><p><b>Kikapcsolva (alapértelmezés):</b> a Ground Zero területén lévő containerek nem jelennek meg a térképen, és nem kerülnek útvonalba. A 4 ottani landing zone (Tango 1–2, Sierra 1–2) sem lehet kezdő- vagy végpont, így a GZ szélén lévő csoportokhoz is egy külső LZ-t kapsz.</p><p><b>Bekapcsolva:</b> a GZ containerei is bekerülnek a csoportokba, és a 4 GZ-s LZ is választható kezdő- és végpontnak. A csoportok ilyenkor a GZ-n keresztül is összeérhetnek, ezért a szomszédos területek útvonalai hosszabbak lehetnek.</p><p><b>Mikor kapcsold be:</b> ha készen állsz a GZ-re, ott van feladatod, vagy a keresett típus nagy része ott található.</p>",
+    "copS.label": "COP kezdőpontként",
+    "copS.aria": "Kiinduló COP",
+    "copS.title": "Melyik COP-ról indulsz",
+    "copS.hint":
+      "<p><b>COP (Combat Outpost): a térképen szétszórt 33 kis bázis.</b> Ez a beállítás csak az útvonal <b>elejére</b> vonatkozik.</p><p><b>Kikapcsolva (alapértelmezés):</b> minden útvonal landing zone-nál (LZ) kezdődik, vagyis helikopterrel érkezel a bázisról.</p><p><b>Bekapcsolva:</b> a jobb oldali listában válaszd ki, melyik COP-on vagy (ábécérendben). Minden útvonal ennél az egy COP-nál kezdődik, LZ-nél vagy más COP-nál nem. A rangsor így a COP-hoz közeli útvonalakat hozza előre, mert a COP-tól az első megállóig tartó szakasz is beleszámít a hosszba.</p><p><b>Mikor kapcsold be:</b> ha egy adott COP-nál spawnolsz. Ha a bázisról indulsz, hagyd kikapcsolva, mert onnan mindig LZ-re érkezel.</p>",
+    "copE.label": "COP végpontként",
+    "copBias.aria": "COP előny méterben: ennyivel lehet messzebb a COP a legközelebbi LZ-nél",
+    "copE.hint":
+      "<p>Ez a beállítás csak az útvonal <b>végére</b> vonatkozik: hová menj az utolsó megálló után.</p><p><b>Kikapcsolva (alapértelmezés):</b> az útvonal az utolsó megállóhoz legközelebbi LZ-nél ér véget, ahonnan helikopterrel kivonulsz.</p><p><b>Bekapcsolva:</b> az útvonal COP-nál is véget érhet, hogy ott folytasd a következő kört, és ne kelljen helikopterre várnod.</p><p><b>COP előny (a szám mellette):</b> a COP-ot akkor is választja, ha legfeljebb ennyi méterrel messzebb van, mint a legközelebbi LZ. Pl. 200 m-nél egy 550 m-re lévő COP-ot választ egy 400 m-re lévő LZ helyett. 0: mindig a közelebbi pont; nagy érték (pl. 3000): szinte mindig COP.</p><p><b>Mennyi az a pár száz méter?</b> Egy átlagos játékos futva nagyjából 200–300 m-t tesz meg egy perc alatt, vagyis a 200 m-es alapérték kb. egy perc futás. Ez becslés: a játék nem közöl pontos sebességet, és a terhelés sokat számít (20 kg alatt tovább bírod a sprintet, 33 kg fölött hamar kifulladsz). A saját tempódat lemérheted: fuss egy percig a játékban, és a <b>Szögmérés</b> eszközzel mérd le a megtett távot.</p><p><b>A két beállítás független:</b> pl. csak a végpontot bekapcsolva LZ-nél kezdesz és COP-nál fejezed be. Az irány választásakor a tervező a ki- és bevezető szakaszok összegét veszi figyelembe. A COP sosem megálló, csak kezdő- vagy végpont, és a <b>Fordított irány</b> is ezekhez a beállításokhoz igazodik.</p>",
+    "sec.btn": "Tiltott szektorok",
+    "sec.hint":
+      "<p><b>Szektorok, ahol nem akarsz útvonalat.</b> A gomb egy listát nyit, ott jelöld be őket.</p><p><b>Hogyan működik:</b> minden útvonal abba a szektorba tartozik, ahol a legtöbb megállója van, és erről kapja a nevét is (pl. Tiger Bay 1). A tiltott szektorba tartozó útvonalak nem készülnek el, a containereik halványan látszanak a térképen. Egy engedélyezett szektor útvonala ettől még átnyúlhat egy tiltottba, ha néhány megállója ott van.</p><p>A Ground Zerót a <b>Ground Zero bevonása</b> beállítás kezeli.</p>",
+    "hints.label": "Segédlet",
+    "hints.title":
+      "Bekapcsolva a beállítások magyarázata megjelenik, ha föléjük viszed az egeret; kikapcsolva rejtve marad.",
+    "reset.btn": "Alaphelyzet",
+    "reset.title":
+      "A beállítások, a kiválasztott container típusok és útvonal ebben a böngészőben mentődnek. Az alaphelyzet törli a kiválasztást, és a beállításokat alapértékre állítja.",
+    "reset.armed": "Kattints újra a törléshez",
+    "reset.done": "Alaphelyzetbe állítva.",
+    "preset.title": "Profilok",
+    "preset.none": "Nincs profil",
+    "preset.selectAria": "Profil",
+    "preset.hint":
+      "<p><b>Az útvonal-beállításaid elnevezett másolatai:</b> az útvonal-beállítások, a kiválasztott container típusok, a tiltott szektorok, a fordított irány, a megállóként hozzáadott ajtók és a kijelölt útvonal.</p><p><b>Amíg egy profil ki van választva,</b> minden változás bele mentődik. Másik profilt választva az töltődik be, és az útvonalai újratervezésre kerülnek.</p><p>A <b>Nincs profil</b> megtartja a jelenlegi útvonalakat, de egyik profilba sem ment.</p>",
+    "preset.delete": "Törlés",
+    "preset.reset": "Profil visszaállítása",
+    "preset.resetTitle": "Profil visszaállítása",
+    "preset.resetText":
+      "Ez alaphelyzetbe állítja ezt a profilt: „{name}”. Az útvonal-beállításai, a container típusai, a tiltott szektorai és a kijelölt útvonala visszaáll alapértékre. A többi profilod, a kulcsaid és a többi adatod megmarad.",
+    "preset.resetNoneTitle": "Útvonal-beállítások visszaállítása",
+    "preset.resetNoneText":
+      "Ez alaphelyzetbe állítja a jelenlegi útvonal-beállításokat: a container típusok, a beállítások, a tiltott szektorok és a kijelölt útvonal visszaáll alapértékre. A profiljaid, a kulcsaid, a nyelv és a többi adatod megmarad.",
+    "preset.new": "Új profil",
+    "preset.newTitle": "Új profil",
+    "preset.nameLabel": "A profil neve",
+    "preset.namePh": "pl. Tiger Bay széfek",
+    "preset.create": "Létrehozás",
+    "preset.cancel": "Mégse",
+    "preset.errDup": "Ilyen nevű profil már van.",
+    "preset.delTitle": "Profil törlése",
+    "preset.delText": "Törlöd ezt a profilt: „{name}”? Nem vonható vissza.",
+    "preset.yes": "Igen",
+    "preset.no": "Nem",
+    "io.import": "Importálás",
+    "io.export": "Exportálás",
+    "io.importTitle": "Beállítások, profilok, kulcsok és nyelv betöltése egy exportált fájlból",
+    "io.exportTitle": "Beállítások, profilok, kulcsok és nyelv mentése fájlba",
+    "io.importConfirm": "Importálás",
+    "io.importText":
+      "Importálod ezt a fájlt: „{name}” (exportálva: {date})? Lecseréli a jelenlegi beállításaidat, profiljaidat, kulcsaidat, pipáidat és a nyelvet, majd újratölti az oldalt.",
+    "io.errTitle": "Sikertelen importálás",
+    "io.errText": "„{name}” nem Kokesz Loot Runs exportfájl.",
+    "io.storeErr": "A böngésző nem engedte elmenteni az adatokat.",
+    "io.ok": "OK",
+    "est.none": "2,5 km-ig egyik sugár sem ad {q}+ containeres csoportot.",
+    "est.band": "Optimális ≈ <b>{lo}–{hi} m</b> · legfeljebb {peak} útvonal",
+    "est.btn": "{mid} m beállítása",
+    "est.title":
+      "Az optimális tartományban legalább 80%-a jön ki annak a legtöbb {q}+ containeres útvonalnak, amit bármely sugár ad",
+
+    "ty.title": "Container típusok",
+    "ty.searchPh": "Típus keresése, pl. safe, ammo",
+    "ty.searchAria": "Container típusok keresése",
+    "ty.none": "Összes törlése",
+    "grp.Containers": "Containerek",
+    "grp.Points of interest": "POI",
+    "grp.General": "Általános",
+    "grp.all": "Mind",
+    "grp.none": "Egyik sem",
+    "ty.show": "{n} megjelenítése a térképen",
+    "ty.add": "{n} hozzáadása az útvonalakhoz",
+    "ty.remove": "{n} eltávolítása",
+    "ty.nomatch": "Egy container típus sem felel meg ennek: „{q}”.",
+
+    "lg.route": "Útvonal",
+    "lg.lzleg": "LZ-szakasz",
+    "sw.measure": "Szögmérés",
+    "sw.measureTitle": "Bekapcsolva a térkép rögzül: 1. kattintás a kezdőpont, 2. a végpont, 3. törli a mérést.",
+    "sw.zones": "Zónahatárok",
+    "sw.zonesTitle": "A zónák (pl. Blue Lagoon, YBL-1) közötti határok szaggatott vonallal.",
+    "sw.legNum": "Megállószámok",
+    "sw.legLen": "Szakaszhossz",
+    "sw.legHead": "Szakaszirány",
+    "sw.poi": "POI nevek",
+    full: "Teljes térkép",
+    "cv.aria":
+      "Lamang műholdtérképe a kiválasztott containerekkel és a tervezett útvonalakkal. Húzással mozgatható, görgetéssel nagyítható.",
+    "zoom.in": "Nagyítás",
+    "zoom.inTitle": "Nagyítás (+)",
+    "zoom.out": "Kicsinyítés",
+    "zoom.outTitle": "Kicsinyítés (−)",
+    zlvl: "{w} széles nézet",
+    busy: "Útvonalak tervezése…",
+    "meas.start": "Szögmérés: kattints a kezdőpontra",
+    "meas.end": "Kattints a végpontra",
+    "meas.clear": "Kattints újra a mérés törléséhez",
+    "map.start": "INDULÁS",
+    "map.end": "ÉRKEZÉS",
+    "map.startEnd": "INDULÁS + ÉRKEZÉS",
+    "tip.door": "{d} m az útvonaltól · kattints, hogy megálló legyen",
+    "tip.lzStart": "{route} kezdőpontja, {d} m az első megállóig",
+    "tip.lzEnd": "{route} végpontja, {d} m az utolsó megállótól",
+    "tip.keyDoor": "Kulcsos ajtó",
+    "tip.key": (v) => `Kulcs: ${v.name}${v.own ? " (megvan)" : ""}`,
+    "tip.stop": (v) => `${v.route}, megálló ${v.k} / ${v.n}${v.looted ? " · kifosztva ✓" : ""}`,
+    "tip.prev": "{d} m az előzőtől ({from})",
+    "tip.prevStop": "megálló {k}",
+    "tip.copStart": (v) => `COP: a kiválasztott kiinduló COP${v.alsoEnd ? ", lehetséges végpont is" : ""}`,
+    "tip.copEnd": "COP: lehetséges végpont, nem megálló",
+    "tip.copShown": "COP (csak megjelenítve, nem része az útvonalaknak)",
+    "tip.nosec": "Nincs útvonalon (tiltott szektor: {s})",
+    "tip.left": "Nincs útvonalon (a csoport a minimum alatt van)",
+
+    "runs.title": "Útvonalak",
+    "runs.sub": "legjobb elöl, méter/container szerint",
+    "runs.browse": "Csak böngészés: az útvonalak rejtve vannak. Kapcsold ki az útvonaltervezéshez.",
+    "runs.allForbidden": "Minden útvonal tiltott szektorba esne. Engedélyezz szektort a Tiltott szektorok gombbal.",
+    "runs.belowMin": "Egy csoport sem éri el a minimális mennyiséget. Csökkentsd, vagy növeld a sugarat.",
+    "runs.copOnly":
+      "A COP-ok csak a térképen jelennek meg. Jelölj be egy container vagy POI típust az útvonaltervezéshez.",
+    "runs.pick": "Válassz ki bal oldalt egy vagy több container típust az útvonaltervezéshez.",
+    "runs.meta": (v) =>
+      `${v.boxes} container${v.doors ? ` + ${v.doors} ajtó` : ""} · ${v.per} m/container · átl. szakasz ${v.avg} m · ${v.lz}${v.done ? ` · ${v.done}/${v.n} kész` : ""}`,
+    "route.near": "{a} közelében",
+    "route.wild": "Terep",
+
+    "det.route": "Útvonal",
+    "det.none": "Még nincs útvonal.",
+    "inv.label": "Fordított irány",
+    "inv.title": "Az útvonalat a másik irányba vezeti végig, a másik végén lévő kezdő- és végponttal.",
+    "det.start": "Kezdés",
+    "det.end": "Vége",
+    "det.startCop": "A kiválasztott kiinduló COP. Itt spawnolj, innen gyalog az első megállóig.",
+    "det.startLz": "Az első megállóhoz legközelebbi LZ. Itt szállj le.",
+    "det.endSame": (v) => `Ugyanez ${v.cop ? "a COP" : "az LZ"} van a legközelebb az utolsó megállóhoz is.`,
+    "det.endLz": "Az utolsó megállóhoz legközelebbi LZ, kivonuláshoz vagy a következő útvonalhoz.",
+    "det.endCopBias":
+      "COP: innen gyalog folytathatod a következő kört. {lz} közelebb van ({d} m), de a COP előny ({bias} m) miatt ez a cél.",
+    "det.endCop": "Az utolsó megállóhoz legközelebbi COP: innen gyalog folytathatod a következő kört.",
+    "det.containers": "Containerek",
+    "det.doors": " + {n} ajtó",
+    "det.avg": "Átl. szakasz",
+    "det.path": "Megállók között",
+    "det.total": "Kezdéstől az utolsóig",
+    "det.looted": "Kifosztva",
+    "det.clearTicks": "Pipák törlése",
+    "det.clearTicksTitle": "Az útvonal minden megállóját újra kifosztatlannak jelöli, pl. egy új körhöz",
+    "doors.title": "Kulcsos ajtók az útvonal mentén <small>{near} m-en belül</small>",
+    "doors.stopTitle": "Megállóként az útvonalba",
+    "doors.stop": "megálló",
+    "doors.own": "megvan",
+    "doors.ownTitle": "Ez a kulcs megvan (Kulcsok → Saját kulcsaim)",
+    "th.stop": "Megálló",
+    "th.leg": "szakasz m",
+    "th.total": "összesen m",
+    "th.looted": "Kifosztva",
+    "row.looted": "Kifosztva: {name}",
+  },
+};
+const LANGKEY = "lamang-lang";
+/* English unless Hungarian was chosen before (saved apart from the route settings, so Alaphelyzet keeps it) */
+let LANG = (() => {
+  try {
+    const l = localStorage.getItem(LANGKEY);
+    return l && Object.hasOwn(I18N, l) ? l : "en";
+  } catch {
+    return "en";
+  }
+})();
+/* a text in the current language; a key missing there falls back to English, then to the key itself */
+function t(key, vars = {}) {
+  const v = I18N[LANG][key] ?? I18N.en[key] ?? key;
+  return typeof v === "function" ? v(vars) : v.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? vars[k] : ""));
+}
+/* the raw template, for code that fills it in elsewhere (the planner in its worker) */
+const tpl = (key) => I18N[LANG][key] ?? I18N.en[key];
+const locale = () => (LANG === "hu" ? "hu-HU" : "en-US");
+/* fills every marked element under root with the current language */
+function applyI18n(root = document) {
+  document.documentElement.lang = LANG;
+  root.querySelectorAll("[data-i18n]").forEach((e) => (e.textContent = t(e.dataset.i18n)));
+  root.querySelectorAll("[data-i18n-html]").forEach((e) => (e.innerHTML = t(e.dataset.i18nHtml)));
+  root.querySelectorAll("[data-i18n-title]").forEach((e) => (e.title = t(e.dataset.i18nTitle)));
+  root.querySelectorAll("[data-i18n-aria]").forEach((e) => e.setAttribute("aria-label", t(e.dataset.i18nAria)));
+  root.querySelectorAll("[data-i18n-placeholder]").forEach((e) => (e.placeholder = t(e.dataset.i18nPlaceholder)));
+  root.querySelectorAll("[data-lang]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.lang === LANG)));
+}
+applyI18n();

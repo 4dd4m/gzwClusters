@@ -1,0 +1,1420 @@
+/* Layout: full-width three-pane field console: filters | satellite map | runs + waypoints. Collapses to map-first stack. */
+:root {
+  --bg: #eef0e8;
+  --paper: #f8f9f3;
+  --ink: #1f2619;
+  --muted: #5d6655;
+  --line: #cdd2c2;
+  --grid: #e1e5d8;
+  --accent: #b4530f;
+  --lzt: #1f6f93;
+  --m-route: #ffa21f;
+  --m-lz: #5fd3ff;
+  --m-cop: #3d9bff;
+  --m-halo: #0d130b;
+  --m-text: #f3f6ec;
+  --hl: #fff1a6;
+  --hl-line: #d9ad00;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151a13;
+    --paper: #1c2219;
+    --ink: #e3e8d9;
+    --muted: #9aa58e;
+    --line: #343d2e;
+    --grid: #262d22;
+    --accent: #f08a3c;
+    --lzt: #6cb8db;
+    --hl: #463c0e;
+    --hl-line: #c9a227;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151a13;
+  --paper: #1c2219;
+  --ink: #e3e8d9;
+  --muted: #9aa58e;
+  --line: #343d2e;
+  --grid: #262d22;
+  --accent: #f08a3c;
+  --lzt: #6cb8db;
+  --hl: #463c0e;
+  --hl-line: #c9a227;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--body);
+  margin-top: 0;
+  padding-inline: 16px;
+  padding-block: 10px 32px;
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-bottom: 14px;
+}
+h1 {
+  font: 700 2rem/1 var(--display);
+  letter-spacing: 0.01em;
+  margin: 0;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.sub {
+  color: var(--muted);
+  margin: 4px 0 0;
+  max-width: 80ch;
+}
+/* the data credit, on its own line under the subtitle */
+.sub .credit {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.8rem;
+}
+.sub a {
+  color: var(--accent);
+}
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font: 0.75rem var(--mono);
+  color: var(--muted);
+}
+.stats b {
+  display: block;
+  font: 700 1.45rem/1 var(--display);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr) 400px;
+  grid-template-areas: "f m r";
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1300px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "m m" "f r";
+  }
+}
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "m" "r" "f";
+  }
+}
+.panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  min-width: 0;
+}
+.panel h2 {
+  font: 700 1rem/1 var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.panel h2 small {
+  font: 400 0.7rem var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+.filters {
+  grid-area: f;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.mapcol {
+  grid-area: m;
+  min-width: 0;
+}
+.right {
+  grid-area: r;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.set {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.opt {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px 8px;
+  align-items: center;
+  position: relative;
+}
+.opt label {
+  font-weight: 600;
+  cursor: help;
+  white-space: nowrap;
+}
+.cbspace {
+  width: 15px;
+}
+.opt .hint,
+.presets .hint {
+  display: none;
+  position: absolute;
+  left: 23px;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 6;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 7px 9px;
+  border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+/* hover, or keyboard focus (not a mouse click) inside the row */
+.opt:hover > .hint,
+.opt:has(:focus-visible) > .hint,
+.presets:hover > .hint,
+.presets:has(:focus-visible) > .hint {
+  display: block;
+}
+/* the presets panel's help opens under the whole panel body, so it never covers its buttons */
+.presets {
+  position: relative;
+}
+.presets .hint {
+  left: 12px;
+}
+/* Segédlet off: the explanations stay hidden (screen readers still get them through aria-describedby) */
+body.nohints .opt .hint,
+body.nohints .presets .hint {
+  display: none;
+}
+body.nohints .opt label {
+  cursor: pointer;
+}
+.opt .hint.wide,
+.presets .hint.wide {
+  right: auto;
+  width: min(380px, calc(100vw - 60px));
+}
+.hint p {
+  margin: 0 0 5px;
+}
+.hint ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.hint li {
+  margin-top: 2px;
+}
+#copStart {
+  font: 500 0.8rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 3px 4px;
+  max-width: 150px;
+  min-width: 0;
+}
+#copStart:disabled {
+  opacity: 0.45;
+}
+.num {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 0.8rem var(--mono);
+  color: var(--muted);
+}
+input[type="number"] {
+  width: 5.2em;
+  font: 500 0.85rem var(--mono);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 4px 6px;
+}
+input[type="number"]:disabled {
+  opacity: 0.45;
+}
+label[for="useQ"] {
+  white-space: nowrap;
+}
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+input[type="search"] {
+  width: 100%;
+  font: 0.85rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 6px 8px;
+}
+button {
+  font: 500 0.78rem var(--body);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--accent);
+}
+:is(button, input, .run, .ty):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.types {
+  max-height: 62vh;
+  overflow: auto;
+  padding-bottom: 6px;
+}
+.tsearch {
+  padding: 10px 12px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tsel {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.grp {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px 4px;
+  font: 600 0.7rem var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.grp span {
+  display: flex;
+  gap: 4px;
+}
+.grp button {
+  padding: 1px 6px;
+  font-size: 0.68rem;
+}
+.ty {
+  display: grid;
+  grid-template-columns: auto 20px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.ty:hover {
+  background: var(--bg);
+}
+div.ty {
+  cursor: default;
+}
+.tyname {
+  all: unset;
+  cursor: zoom-in;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tyname:hover {
+  text-decoration: underline;
+  color: var(--accent);
+}
+.tyname:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  background: var(--bg);
+}
+.chips img {
+  width: 14px;
+  height: 14px;
+}
+.reset {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--grid);
+}
+/* Segédlet sits at the far left of the row, the saved note and Alaphelyzet at the right */
+.reset .switch {
+  margin-right: auto;
+}
+.note-reset {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+#reset.armed {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.rest {
+  grid-column: 2/4;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.rest:empty {
+  display: none;
+}
+.rest b {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.rest button {
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+}
+.nomatch {
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.ty img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+.ty .c {
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mapbox {
+  position: relative;
+  background: #1b2a18;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+/* map toolbar: legend on the left, switches centred (wrapping in their column), Teljes térkép on the right */
+.maptools {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "legend tools full";
+  gap: 6px 14px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.legend {
+  grid-area: legend;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: center;
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ln {
+  width: 18px;
+  height: 0;
+  border-top: 3px solid var(--m-route);
+}
+.ln.d {
+  border-top: 2px dashed var(--m-lz);
+}
+canvas {
+  display: block;
+  width: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+canvas.dragging {
+  cursor: grabbing;
+}
+canvas.measuring {
+  cursor: crosshair;
+}
+.tools {
+  grid-area: tools;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 14px;
+}
+#full {
+  grid-area: full;
+}
+/* phones: legend and Teljes térkép share the top line, the switches go under them */
+@media (max-width: 760px) {
+  .maptools {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "legend full" "tools tools";
+  }
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 500;
+  user-select: none;
+}
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.switch .track {
+  width: 30px;
+  height: 17px;
+  border-radius: 9px;
+  background: var(--line);
+  position: relative;
+  transition: background 0.15s;
+}
+.switch .track::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.switch input:checked + .track {
+  background: var(--accent);
+}
+.switch input:checked + .track::after {
+  transform: translateX(13px);
+}
+.switch input:focus-visible + .track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch .track,
+  .switch .track::after {
+    transition: none;
+  }
+}
+/* top is set from the toolbar's height in size(), so the buttons sit on the map, not over the wrapped toolbar */
+.zoomctl {
+  position: absolute;
+  right: 10px;
+  top: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1;
+}
+.zoomctl button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font: 600 1rem/1 var(--mono);
+  color: var(--m-text);
+  background: rgba(13, 19, 11, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.zoomctl button:hover {
+  border-color: var(--m-route);
+}
+.zoomctl button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.mhint {
+  position: absolute;
+  left: 10px;
+  bottom: 34px;
+  font: 0.75rem var(--mono);
+  color: var(--m-text);
+  background: rgba(13, 19, 11, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 3px 8px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.zlvl {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  font: 0.72rem var(--mono);
+  color: var(--m-text);
+  background: rgba(13, 19, 11, 0.75);
+  padding: 2px 7px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.tipimg {
+  display: block;
+  width: 470px;
+  max-width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 2px;
+  margin-bottom: 6px;
+  background: #26301f;
+}
+.tip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--m-halo);
+  color: var(--m-text);
+  font: 12px/1.4 var(--mono);
+  padding: 6px 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 560px;
+  z-index: 2;
+}
+.busy {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  font: 0.75rem var(--mono);
+  color: var(--m-text);
+  background: var(--m-halo);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.runs {
+  max-height: 330px;
+  overflow: auto;
+}
+.run {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.8rem 1fr auto;
+  gap: 1px 8px;
+  align-items: baseline;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--grid);
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+}
+.run:hover {
+  background: var(--bg);
+}
+.run[aria-pressed="true"] {
+  border-left-color: var(--accent);
+  background: var(--bg);
+}
+.rank {
+  font: 500 0.72rem var(--mono);
+  color: var(--muted);
+}
+.rname {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rlen {
+  font: 500 0.8rem var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.rmeta {
+  grid-column: 2/4;
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+}
+.bar {
+  grid-column: 2/4;
+  height: 3px;
+  background: var(--grid);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.empty {
+  padding: 16px 12px;
+  color: var(--muted);
+}
+.det {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+.det .k {
+  font: 600 0.66rem var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.det .v {
+  font: 500 0.95rem var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.det .lz {
+  grid-column: 1/-1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.det .lz b {
+  font: 700 0.95rem var(--display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lzt);
+}
+.det .lz .v {
+  font-size: 0.85rem;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 0.75rem var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+th,
+td {
+  padding: 4px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--grid);
+  white-space: nowrap;
+}
+th {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.65rem;
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+}
+th:nth-child(2),
+td:nth-child(2) {
+  text-align: left;
+  white-space: normal;
+  min-width: 9em;
+}
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+tr.lzrow td {
+  color: var(--lzt);
+}
+.tbl {
+  overflow: auto;
+  max-height: 420px;
+}
+/* Fordított irány in the route panel's header, next to the route name: plain text, not the header's display font */
+.panel h2 .inv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 0.78rem var(--body);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.panel h2 .inv:has(input:disabled) {
+  opacity: 0.45;
+  cursor: default;
+}
+tbody tr {
+  cursor: pointer;
+}
+tbody tr:hover td {
+  background: var(--bg);
+}
+tbody tr.cur td {
+  background: var(--bg);
+  font-weight: 600;
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+tbody tr.cur td:first-child {
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 -1px 0 var(--accent);
+}
+/* wide screens: page fits the viewport; side panels fill the height and scroll inside */
+@media (min-width: 1301px) {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    flex: none;
+  }
+  .layout {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .filters,
+  .right {
+    height: 100%;
+    min-height: 0;
+  }
+  .filters .panel:last-child {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .types {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  .right .panel {
+    flex: 2 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  /* the route panel (details, keyed doors, stop table) gets the larger share */
+  .right .panel:last-child {
+    flex-grow: 3;
+  }
+  .runs {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  .tbl {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  /* the route's details scroll on their own past half the panel, so the stop table always keeps the other half */
+  .det {
+    flex: none;
+    max-height: 55%;
+    overflow: auto;
+  }
+  .mapcol {
+    min-height: 0;
+    overflow: auto;
+  }
+  /* browse only: the routes column closes and the map takes it; the panel keeps its width, so it slides out past the edge while fading */
+  .right {
+    width: 400px;
+  }
+  body.browse .layout {
+    grid-template-columns: 340px minmax(0, 1fr) 0px;
+    margin-right: -14px;
+  }
+  body.browse .layout,
+  body.anim .layout {
+    overflow-x: clip;
+  }
+  body.anim .layout {
+    transition:
+      grid-template-columns 0.35s ease,
+      margin-right 0.35s ease;
+  }
+  /* mid-slide the map column can overflow for a frame; a scrollbar appearing then sticks and narrows the map */
+  body.anim .mapcol {
+    overflow: hidden;
+  }
+}
+/* browse only: route-only controls (.rt) hide */
+body.browse .rt {
+  display: none;
+}
+body.browse .right {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+body.anim .right {
+  transition:
+    opacity 0.3s ease,
+    visibility 0s 0.35s;
+}
+body.anim:not(.browse) .right {
+  transition:
+    opacity 0.3s ease 0.05s,
+    visibility 0s;
+}
+@media (max-width: 1300px) {
+  body.browse .right {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.anim .layout,
+  body.anim .right {
+    transition: none;
+  }
+}
+/* keys per sector: header button and a modal that only its own button closes (Esc too), not a backdrop click */
+.stats {
+  align-items: center;
+}
+.keysbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+.keysbtn img {
+  width: 14px;
+  height: 14px;
+}
+/* Import / Export, left of the language switch */
+.io {
+  display: inline-flex;
+  gap: 6px;
+}
+.io button {
+  padding: 6px 10px;
+  font-weight: 600;
+}
+/* language switch: two joined buttons, the chosen one filled */
+.lang {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.lang button {
+  border: 0;
+  border-radius: 0;
+  padding: 6px 10px;
+  font: 600 0.75rem var(--mono);
+  color: var(--muted);
+}
+.lang button + button {
+  border-left: 1px solid var(--line);
+}
+.lang button[aria-checked="true"] {
+  background: var(--accent);
+  color: var(--paper);
+}
+.lang button:not([aria-checked="true"]):hover {
+  color: var(--ink);
+}
+dialog {
+  width: min(980px, calc(100vw - 32px));
+  max-height: min(86vh, 900px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+dialog::backdrop {
+  background: rgba(13, 19, 11, 0.62);
+}
+.dlghead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px 4px;
+}
+.dlghead h2 {
+  font: 700 1.25rem/1 var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+.ktabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ktabs [role="tab"] {
+  margin-bottom: -1px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ktabs [role="tab"]:not([aria-selected="true"]):hover {
+  border-color: transparent;
+  color: var(--ink);
+}
+.ktabs [role="tab"][aria-selected="true"] {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--line);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.ktabs small {
+  margin-left: 4px;
+  font: 400 0.72rem var(--mono);
+  color: var(--muted);
+}
+.dlgnote {
+  margin: 0;
+  padding: 10px 14px 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  max-width: 110ch;
+}
+.kroute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+.kroute i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--hl);
+  border: 1px solid var(--hl-line);
+}
+.keygrid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 6px 14px;
+  columns: 220px;
+  column-gap: 12px;
+}
+/* the selected route's sectors: yellow box around the key list */
+.ksec {
+  break-inside: avoid;
+  margin: 0 0 10px;
+  padding: 6px 8px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.ksec.hl {
+  background: var(--hl);
+  border-color: var(--hl-line);
+}
+.ksec h3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font: 700 0.95rem/1.1 var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--grid);
+}
+.ksec.hl h3 {
+  border-bottom-color: var(--hl-line);
+}
+.ksec h3 small {
+  font: 400 0.7rem var(--mono);
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.ksec.hl h3 small {
+  color: var(--ink);
+}
+.ksec ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ksec li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font: 500 0.8rem var(--mono);
+}
+.ksec li:hover {
+  background: rgba(128, 128, 128, 0.18);
+}
+.ksec li img {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.ksec li label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.ksec li.none {
+  color: var(--muted);
+  font: italic 0.78rem var(--body);
+}
+.ksec li.none:hover {
+  background: none;
+}
+.kempty {
+  column-span: all;
+  margin: 0 8px 12px;
+  color: var(--muted);
+}
+.kempty button {
+  margin-left: 8px;
+}
+/* hover popup: where the key's door is, on a small map */
+.kpop {
+  position: fixed;
+  z-index: 10;
+  padding: 8px;
+  background: var(--m-halo);
+  color: var(--m-text);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  font: 12px/1.45 var(--mono);
+  pointer-events: none;
+}
+.kpop {
+  width: 338px;
+}
+.kpop canvas {
+  width: 320px;
+  height: 190px;
+  margin-bottom: 6px;
+  border-radius: 2px;
+  cursor: default;
+}
+.kprow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kprow img {
+  flex: none;
+  width: 96px;
+  height: 64px;
+  object-fit: contain;
+}
+.kprow div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.kprow b {
+  font: 600 13px var(--mono);
+}
+.kprow span {
+  color: #c9d0bd;
+}
+.kprow span:empty {
+  display: none;
+}
+/* owned keys list: the key's picture next to its names */
+.ksec li .kimg {
+  width: 54px;
+  height: 36px;
+  object-fit: contain;
+}
+.ksec li .kimg.noimg {
+  padding: 8px 17px;
+}
+.kname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.kname small {
+  font: 400 0.7rem/1.3 var(--body);
+  color: var(--muted);
+}
+.ksec.hl .kname small {
+  color: var(--ink);
+}
+/* forbidden sectors modal: checkbox per sector, with how many routes it has (or loses) */
+#secDlg {
+  width: min(560px, calc(100vw - 32px));
+}
+/* confirmation modal: a question and two buttons, the destructive one in the accent colour */
+#clearDlg,
+#presetDlg,
+#presetDelDlg,
+#presetResetDlg,
+#ioDlg {
+  width: min(420px, calc(100vw - 32px));
+}
+/* presets panel: the dropdown, then Delete on the left and Create new preset on the right, nothing more */
+.presets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.presets select {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  font: 500 0.85rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+/* Delete on the left, Reset in the middle, Create new preset on the right */
+.presets .prow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.presets .prow button {
+  white-space: nowrap;
+}
+.presets .prow > :first-child {
+  justify-self: start;
+}
+.presets .prow > :last-child {
+  justify-self: end;
+}
+.presets button:disabled,
+.dlgbtns button:disabled {
+  opacity: 0.45;
+  cursor: default;
+  border-color: var(--line);
+}
+/* the name form in the Create new preset modal */
+.dlgform {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px 0;
+}
+.dlgform label {
+  font-weight: 600;
+}
+.dlgform input {
+  padding: 6px 8px;
+  font: 0.9rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.dlgform .dlgbtns {
+  padding: 10px 0 14px;
+}
+.dlgerr {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+.confirmtxt {
+  margin: 0;
+  padding: 10px 14px 4px;
+  font-size: 0.95rem;
+}
+.dlgbtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+.dlgbtns button {
+  padding: 6px 14px;
+}
+.dlgbtns .primary,
+.dlgbtns .danger {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.seclist {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin-top: 10px;
+  padding: 8px 14px 14px;
+  border-top: 1px solid var(--line);
+  columns: 230px;
+  column-gap: 18px;
+}
+.seclist label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -6px;
+  padding: 5px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  cursor: pointer;
+  break-inside: avoid;
+}
+.seclist label:hover {
+  background: rgba(128, 128, 128, 0.16);
+}
+.seclist small {
+  margin-left: auto;
+  font: 400 0.72rem var(--mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.seclist input:checked ~ small {
+  color: var(--accent);
+}
+/* route panel: raid checklist progress, and keyed doors along the route. The list must not scroll on its own: as a scrolling
+   item of the height-limited details grid it would be squeezed to nothing; the details scroll as a whole instead */
+.det .prog {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.det .prog button {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+}
+.det .doors {
+  grid-column: 1/-1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--grid);
+}
+.det .doors .k small {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.det .doors label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -4px;
+  padding: 3px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.det .doors label:hover {
+  background: var(--bg);
+}
+.det .doors img {
+  flex: none;
+  width: 42px;
+  height: 28px;
+  object-fit: contain;
+}
+.det .doors img.noimg {
+  padding: 6px 13px;
+}
+.dname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font: 600 0.8rem var(--mono);
+}
+.dname small {
+  font: 400 0.7rem var(--body);
+  color: var(--muted);
+}
+.det .own {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--hl-line);
+  border-radius: 3px;
+  background: var(--hl);
+  font: 500 0.68rem var(--mono);
+  color: var(--ink);
+}
+/* stop table: ticked-off stops fade and are struck through (not the box itself) */
+tbody tr.done td:not(:last-child) {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+td input[type="checkbox"] {
+  vertical-align: middle;
+}
