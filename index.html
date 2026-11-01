@@ -16,7 +16,6 @@
     <header>
       <div>
         <h1>Kokesz Loot Runs</h1>
-        <p class="sub"><span data-i18n="sub"></span><span class="credit" data-i18n-html="credit"></span></p>
       </div>
       <div class="stats">
         <button type="button" id="keysBtn" class="keysbtn" aria-haspopup="dialog">
@@ -38,6 +37,12 @@
           <button type="button" id="exportBtn" data-i18n="io.export" data-i18n-title="io.exportTitle"></button>
           <input type="file" id="importFile" accept=".json,application/json" hidden />
         </div>
+        <button type="button" id="cfgBtn" class="cfgbtn" aria-haspopup="dialog" data-i18n-title="cfg.btnTitle" data-i18n-aria="cfg.btnTitle">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="3.6" stroke-dasharray="3.2 3.24" />
+            <circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="2.6" />
+          </svg>
+        </button>
         <div class="lang" role="radiogroup" aria-label="Language / Nyelv">
           <button type="button" role="radio" data-lang="en" aria-checked="true" title="English">EN</button
           ><button type="button" role="radio" data-lang="hu" aria-checked="false" title="Magyar">HU</button>
@@ -80,7 +85,45 @@
       <p class="dlgnote" data-i18n="nf.note"></p>
       <div class="nflist" id="nfList"></div>
     </dialog>
+    <dialog id="cfgDlg" aria-labelledby="cfgT">
+      <div class="dlghead">
+        <h2 id="cfgT" data-i18n="cfg.title"></h2>
+        <span class="nfhead"
+          ><button type="button" id="cfgReset" data-i18n="cfg.reset"></button
+          ><button type="button" id="cfgClose" data-i18n="close"></button
+        ></span>
+      </div>
+      <p class="dlgnote" data-i18n="cfg.note"></p>
+      <div class="cfg">
+        <fieldset>
+          <legend data-i18n="cfg.route"></legend>
+          <label><span data-i18n="cfg.color"></span><input type="color" data-st="routeColor" /></label>
+          <label><span data-i18n="cfg.line"></span><select data-st="routeLine"></select></label>
+          <label><span data-i18n="cfg.width"></span><input type="range" min="1" max="7" step="0.1" data-st="routeWidth" /><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend data-i18n="cfg.leg"></legend>
+          <label><span data-i18n="cfg.color"></span><input type="color" data-st="legColor" /></label>
+          <label><span data-i18n="cfg.line"></span><select data-st="legLine"></select></label>
+          <label><span data-i18n="cfg.width"></span><input type="range" min="1" max="6" step="0.1" data-st="legWidth" /><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend data-i18n="cfg.arrows"></legend>
+          <label><span data-i18n="cfg.arrow"></span><select data-st="arrow"></select></label>
+          <label><span data-i18n="cfg.arrowSize"></span><input type="range" min="4" max="14" step="0.5" data-st="arrowSize" /><output></output></label>
+        </fieldset>
+        <fieldset>
+          <legend data-i18n="cfg.icons"></legend>
+          <label><span data-i18n="cfg.iconSize"></span><input type="range" min="60" max="180" step="5" data-st="iconSize" /><output></output></label>
+          <label><span data-i18n="cfg.lzSize"></span><input type="range" min="60" max="180" step="5" data-st="lzSize" /><output></output></label>
+          <label><span data-i18n="cfg.cmSize"></span><input type="range" min="60" max="180" step="5" data-st="cmSize" /><output></output></label>
+        </fieldset>
+      </div>
+    </dialog>
     <div class="ctxmenu" id="ctxMenu" role="menu" data-i18n-aria="ctx.aria" hidden>
+      <button type="button" role="menuitem" id="ctxAdd" data-i18n="ctx.add"></button>
+      <button type="button" role="menuitem" id="ctxEdit" data-i18n="ctx.edit"></button>
+      <button type="button" role="menuitem" id="ctxRoute"></button>
       <button type="button" role="menuitem" id="ctxNf"></button>
       <button type="button" role="menuitem" id="ctxNote"></button>
     </div>
@@ -93,6 +136,37 @@
           <button type="button" id="noteDel" class="danger" data-i18n="note.del"></button>
           <button type="button" id="noteCancel" data-i18n="preset.cancel"></button>
           <button type="submit" id="noteOk" class="primary"></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="cmDlg" aria-labelledby="cmT">
+      <div class="dlghead"><h2 id="cmT"></h2></div>
+      <form id="cmForm" class="dlgform" novalidate>
+        <label for="cmName" data-i18n="cm.nameLabel"></label>
+        <input type="text" id="cmName" maxlength="40" autocomplete="off" data-i18n-placeholder="cm.namePh" />
+        <span class="dlglabel" id="cmIconLbl" data-i18n="cm.iconLabel"></span>
+        <div class="cmicons" id="cmIcons" role="radiogroup" aria-labelledby="cmIconLbl"></div>
+        <div class="dlgbtns">
+          <button type="button" id="cmDel" class="danger" data-i18n="cm.del"></button>
+          <button type="button" id="cmCancel" data-i18n="preset.cancel"></button>
+          <button type="submit" id="cmOk" class="primary"></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="rtDlg" aria-labelledby="rtT">
+      <div class="dlghead"><h2 id="rtT" data-i18n="rt.title"></h2></div>
+      <form id="rtForm" class="dlgform" novalidate>
+        <p class="rtfor" id="rtFor"></p>
+        <p class="rtnote" data-i18n="rt.note"></p>
+        <label for="rtType" data-i18n="rt.typeLabel"></label>
+        <select id="rtType"></select>
+        <input type="text" id="rtNew" maxlength="40" autocomplete="off" data-i18n-placeholder="rt.newPh" data-i18n-aria="rt.newPh" hidden />
+        <label for="rtSec" data-i18n="rt.secLabel"></label>
+        <select id="rtSec"></select>
+        <div class="dlgbtns">
+          <button type="button" id="rtOff" class="danger" data-i18n="rt.off"></button>
+          <button type="button" id="rtCancel" data-i18n="preset.cancel"></button>
+          <button type="submit" id="rtOk" class="primary"></button>
         </div>
       </form>
     </dialog>
@@ -307,9 +381,20 @@
         <div class="mapbox" id="mapbox">
           <div class="maptools">
             <div class="legend">
-              <span class="rt"><span class="ln"></span><span data-i18n="lg.route"></span></span>
-              <span class="rt"><span class="ln d"></span><span data-i18n="lg.lzleg"></span></span>
-              <span id="lgLz"></span>
+              <button type="button" class="lghelp" aria-describedby="lgPop" data-i18n-aria="lg.title" data-i18n-title="lg.title">?</button>
+              <div class="lgpop" id="lgPop" role="tooltip">
+                <div class="lgrow rt"><i class="sym"><i class="ln"></i></i><span data-i18n-html="lg.route"></span></div>
+                <div class="lgrow rt"><i class="sym"><i class="ln d"></i></i><span data-i18n-html="lg.lzleg"></span></div>
+                <div class="lgrow"><i class="sym"><img alt="" data-lgicon="landingZone" /></i><span data-i18n-html="lg.lz"></span></div>
+                <div class="lgrow rt"><i class="sym"><i class="num">3</i></i><span data-i18n-html="lg.num"></span></div>
+                <div class="lgrow"><i class="sym"><i class="badge ok">✓</i></i><span data-i18n-html="lg.looted"></span></div>
+                <div class="lgrow"><i class="sym"><i class="badge nf">✕</i></i><span data-i18n-html="lg.nf"></span></div>
+                <div class="lgrow"><i class="sym"><svg viewBox="0 0 17 16" width="17" height="16" aria-hidden="true"><path d="M4 1h9a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-1l1 3.5L9 12H4a3 3 0 0 1-3-3V4a3 3 0 0 1 3-3z" fill="#f3c623" stroke="#0d130b" stroke-width="1.4"/><circle cx="5" cy="6.5" r="1.1" fill="#0d130b"/><circle cx="8.5" cy="6.5" r="1.1" fill="#0d130b"/><circle cx="12" cy="6.5" r="1.1" fill="#0d130b"/></svg></i><span data-i18n-html="lg.note"></span></div>
+                <div class="lgrow"><i class="sym"><svg viewBox="0 0 18 24" width="13" height="18" aria-hidden="true"><path d="M9 23C8 20 2 15 2 9a7 7 0 0 1 14 0c0 6-6 11-7 14z" fill="#2fbf71" stroke="#0d130b" stroke-width="1.8"/><circle cx="9" cy="9" r="2.8" fill="#fff"/></svg></i><span data-i18n-html="lg.me"></span></div>
+                <div class="lgrow"><i class="sym"><img alt="" data-lgicon="cm-drug" /></i><span data-i18n-html="lg.cm"></span></div>
+                <div class="lgrow"><i class="sym"><i class="ln z"></i></i><span data-i18n-html="lg.zone"></span></div>
+                <p class="lgclick" data-i18n-html="lg.click"></p>
+              </div>
             </div>
             <div class="tools">
               <label class="switch" data-i18n-title="sw.measureTitle"
@@ -330,9 +415,12 @@
               ><label class="switch rt bailsw" data-i18n-title="sw.bailTitle"
                 ><input type="checkbox" role="switch" id="bail" /><span class="track" aria-hidden="true"></span
                 ><span data-i18n="sw.bail"></span></label
-              ><label class="switch"
+              ><label class="switch" data-i18n-title="sw.poiTitle"
                 ><input type="checkbox" role="switch" id="poiNames" /><span class="track" aria-hidden="true"></span
-                ><span data-i18n="sw.poi"></span
+                ><span data-i18n="sw.poi"></span></label
+              ><label class="switch" data-i18n-title="sw.cmTitle"
+                ><input type="checkbox" role="switch" id="cmShow" /><span class="track" aria-hidden="true"></span
+                ><span data-i18n="sw.cm"></span
               ></label>
             </div>
             <button id="full" type="button" data-i18n="full"></button>

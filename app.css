@@ -76,20 +76,6 @@ h1 {
   text-transform: uppercase;
   text-wrap: balance;
 }
-.sub {
-  color: var(--muted);
-  margin: 4px 0 0;
-  max-width: 80ch;
-}
-/* the data credit, on its own line under the subtitle */
-.sub .credit {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.8rem;
-}
-.sub a {
-  color: var(--accent);
-}
 .stats {
   display: flex;
   flex-wrap: wrap;
@@ -458,25 +444,102 @@ div.ty {
   font-size: 0.78rem;
   color: var(--muted);
 }
+/* map legend: a ? button; hovering it (or focusing it, e.g. a tap) opens the explanation of the map's symbols, dark like the
+   map's own tooltip so the symbols look as they do on the map */
 .legend {
   grid-area: legend;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  align-items: center;
+  position: relative;
 }
-.legend span {
-  display: inline-flex;
+.lghelp {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  font: 700 0.85rem var(--body);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lgpop {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 8;
+  width: min(430px, calc(100vw - 48px));
+  padding: 8px 10px;
+  background: var(--m-halo);
+  color: var(--m-text);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font: 0.78rem/1.4 var(--body);
+}
+.legend:hover .lgpop,
+.legend:focus-within .lgpop {
+  display: block;
+}
+.lgrow {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
-  gap: 6px;
+  padding: 3px 0;
+}
+.lgrow .sym {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-style: normal;
+}
+.lgrow img {
+  width: 18px;
+  height: 18px;
+}
+.lgrow b {
+  color: #fff;
+}
+.lgpop .lgclick {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 .ln {
-  width: 18px;
+  display: inline-block;
+  width: 22px;
   height: 0;
   border-top: 3px solid var(--m-route);
 }
 .ln.d {
   border-top: 2px dashed var(--m-lz);
+}
+.ln.z {
+  border-top: 2px dashed #7dff2e;
+}
+.lgrow .num {
+  min-width: 15px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--m-route);
+  color: var(--m-halo);
+  font: 600 0.62rem/14px var(--mono);
+  text-align: center;
+  font-style: normal;
+}
+.lgrow .badge {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--m-halo);
+  color: #fff;
+  font: 700 0.55rem/11px var(--body);
+  text-align: center;
+  font-style: normal;
+}
+.badge.ok {
+  background: #3fbf5a;
+}
+.badge.nf {
+  background: #d23b3b;
 }
 canvas {
   display: block;
@@ -1018,6 +1081,71 @@ body.anim:not(.browse) .right {
   width: 14px;
   height: 14px;
 }
+/* Display settings: the gear left of the language switch, and its window's groups (label, control, readout) */
+.cfgbtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 7px;
+  color: var(--muted);
+}
+.cfgbtn:hover {
+  color: var(--ink);
+}
+#cfgDlg {
+  width: min(560px, calc(100vw - 32px));
+}
+.cfg {
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  padding: 10px 14px 14px;
+}
+.cfg fieldset {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.cfg legend {
+  padding: 0 4px;
+  font: 700 0.95rem var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cfg label {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(0, 1.4fr) 58px;
+  gap: 10px;
+  align-items: center;
+  font-weight: 500;
+}
+.cfg select {
+  padding: 4px 6px;
+  font: 500 0.85rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.cfg input[type="color"] {
+  width: 56px;
+  height: 26px;
+  padding: 0 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.cfg input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.cfg output {
+  font: 0.75rem var(--mono);
+  color: var(--muted);
+  text-align: right;
+}
 /* Import / Export, left of the language switch */
 .io {
   display: inline-flex;
@@ -1302,6 +1430,8 @@ dialog::backdrop {
 #presetDelDlg,
 #presetResetDlg,
 #noteDlg,
+#cmDlg,
+#rtDlg,
 #ioDlg {
   width: min(420px, calc(100vw - 32px));
 }
@@ -1354,7 +1484,7 @@ dialog::backdrop {
 .dlgform label {
   font-weight: 600;
 }
-.dlgform :is(input, textarea) {
+.dlgform :is(input, textarea, select) {
   padding: 6px 8px;
   font: 0.9rem var(--body);
   color: var(--ink);
@@ -1366,9 +1496,62 @@ dialog::backdrop {
   resize: vertical;
   min-height: 6em;
 }
-/* Delete note sits apart, on the left */
-#noteDel {
+/* Delete note / Delete POI / Make it a plain POI sit apart, on the left */
+:is(#noteDel, #cmDel, #rtOff) {
   margin-right: auto;
+}
+/* custom POI dialogs: a group label like the field labels, the icon picker as tiles (picture over name, the chosen one in
+   the accent), and the routable point's name and explanation */
+.dlgform .dlglabel {
+  font-weight: 600;
+  margin-top: 4px;
+}
+.cmicons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 6px;
+}
+.dlgform .cmic {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: 500 0.75rem var(--body);
+  cursor: pointer;
+}
+.cmic input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.cmic img {
+  width: 26px;
+  height: 26px;
+}
+.cmic:hover {
+  border-color: var(--accent);
+}
+.cmic:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+.cmic:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.dlgform .rtfor {
+  margin: 0;
+  font: 700 1rem var(--body);
+}
+.dlgform .rtnote {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 .dlgform .dlgbtns {
   padding: 10px 0 14px;

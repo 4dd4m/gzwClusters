@@ -12,6 +12,145 @@ const M = DATA.marks.map((a, i) => ({
   icon: a[5],
   id: a[6],
 }));
+/* ---------- custom markers ---------- */
+/* Your own points on the map (right-click a free spot → Add marker here), each with a name, an icon and a note like any
+   container. Stored apart from the settings (Server switch and Reset leave them alone, Export / Import take them along) as
+   {markers: [{id, lat, lng, name, icon, type, sec}], types: [{id, name, icon}]}. A marker with a type is routable: it joins
+   M as a container of that type, either a container type of the map or one of your own (types, added to T and so to the
+   Container types list), so the planner, looted ticks and notes treat it like any other container. MICONS: the icons, round
+   badges whose pictures serve the dialog's picker, the type list and the map alike. */
+const MKEY = "lamang-markers-v1",
+  MNAMEMAX = 40,
+  MICON = (fill, glyph) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="${fill}" stroke="#0d130b" stroke-width="1.6"/>${glyph}</svg>`,
+  MICONS = {
+    pin: MICON("#2d9cdb", `<circle cx="12" cy="12" r="3.4" fill="#fff"/>`),
+    drug: MICON(
+      "#9b51e0",
+      `<g transform="rotate(-45 12 12)"><rect x="5" y="9" width="14" height="6" rx="3" fill="#fff"/><path d="M12 9H8a3 3 0 0 0 0 6h4z" fill="#ff6b81"/><path d="M12 9v6" stroke="#0d130b" stroke-width=".8"/></g>`,
+    ),
+    danger: MICON(
+      "#e5484d",
+      `<path d="M12 6.5v6.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="16.8" r="1.4" fill="#fff"/>`,
+    ),
+    loot: MICON("#f2994a", `<path d="M12 6.2l1.8 3.7 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4-2.9-2.8 4-.6z" fill="#fff"/>`),
+    key: MICON(
+      "#16a085",
+      `<circle cx="9" cy="12" r="2.8" fill="none" stroke="#fff" stroke-width="2"/><path d="M11.8 12H18.5M16.5 12v2.6M14.6 12v1.8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,
+    ),
+    enemy: MICON(
+      "#4a5568",
+      `<circle cx="12" cy="12" r="4.4" fill="none" stroke="#fff" stroke-width="1.8"/><path d="M12 5.2v3.4M12 15.4v3.4M5.2 12h3.4M15.4 12h3.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>`,
+    ),
+  };
+for (const k in MICONS) DATA.icons["cm-" + k] = "data:image/svg+xml," + encodeURIComponent(MICONS[k]);
+const cmObj = (o) => {
+  const mi = o.icon in MICONS ? o.icon : "pin";
+  return {
+    id: o.id,
+    lat: Math.round(+o.lat * 10) / 10,
+    lng: Math.round(+o.lng * 10) / 10,
+    label: String(o.name).trim().slice(0, MNAMEMAX),
+    mi,
+    icon: "cm-" + mi,
+    type: typeof o.type === "string" ? o.type : null,
+    poi: typeof o.sec === "string" ? o.sec : "",
+    custom: true,
+  };
+};
+let MARKERS = [];
+try {
+  const s = JSON.parse(localStorage.getItem(MKEY) || "null");
+  (Array.isArray(s?.types) ? s.types : []).slice(0, 200).forEach((c) => {
+    if (c && /^cust-[\w-]+$/.test(c.id) && typeof c.name === "string" && c.name.trim() && !T.some((t) => t.id === c.id))
+      T.push({
+        id: c.id,
+        name: c.name.trim().slice(0, MNAMEMAX),
+        group: "Containers",
+        n: 0,
+        icon: "cm-" + (c.icon in MICONS ? c.icon : "pin"),
+        custom: true,
+      });
+  });
+  if (Array.isArray(s?.markers))
+    MARKERS = s.markers
+      .slice(0, 2000)
+      .filter(
+        (o) => o && /^cm[\w-]+$/.test(o.id) && Number.isFinite(o.lat) && Number.isFinite(o.lng) && typeof o.name === "string",
+      )
+      .map(cmObj)
+      .filter((o) => o.label);
+} catch {}
+/* routable markers join M after the map's own markers, as containers of their type; the type counts follow */
+const M0 = M.length,
+  N0 = T.map((t) => t.n);
+function cmLink() {
+  M.length = M0;
+  T.forEach((t, i) => (t.n = N0[i] || 0));
+  MARKERS.forEach((m) => {
+    const ti = m.type ? T.findIndex((t) => t.id === m.type) : -1;
+    m.t = ti >= 0 ? ti : undefined;
+    m.i = ti >= 0 ? M.length : undefined;
+    if (ti < 0) return;
+    M.push(m);
+    T[ti].n++;
+  });
+}
+cmLink();
+function saveMarkers() {
+  if (FROZEN) return;
+  const used = new Set(MARKERS.map((m) => m.type));
+  try {
+    localStorage.setItem(
+      MKEY,
+      JSON.stringify({
+        markers: MARKERS.map((m) => ({ id: m.id, lat: m.lat, lng: m.lng, name: m.label, icon: m.mi, type: m.type, sec: m.poi })),
+        types: T.filter((t) => t.custom && used.has(t.id)).map((t) => ({ id: t.id, name: t.name, icon: t.icon.slice(3) })),
+      }),
+    );
+  } catch {}
+}
+/* ---------- display settings ---------- */
+/* The Display settings window (gear left of EN | HU): route and LZ leg colour, line type and thickness, arrowheads, icon
+   sizes. Kept apart from the route settings (Reset leaves them alone, Export / Import take them along); the defaults are
+   the map's original look. The colours go into the --m-route / --m-lz variables, so the legend follows too. Widths are the
+   open route's; the other routes are drawn at 62% of them. */
+const STYLEKEY = "lamang-style-v1",
+  STYLE0 = {
+    routeColor: "#ffa21f",
+    routeLine: "solid",
+    routeWidth: 2.6,
+    legColor: "#5fd3ff",
+    legLine: "dashed",
+    legWidth: 2.1,
+    arrow: "triangle",
+    arrowSize: 7,
+    iconSize: 100,
+    lzSize: 100,
+    cmSize: 100,
+  },
+  LINES = ["solid", "dashed", "dotted"],
+  ARROWS = ["triangle", "chevron", "none"],
+  /* number settings: [min, max] */
+  STYLEN = { routeWidth: [1, 7], legWidth: [1, 6], arrowSize: [4, 14], iconSize: [60, 180], lzSize: [60, 180], cmSize: [60, 180] };
+const ST = { ...STYLE0 };
+try {
+  const s = JSON.parse(localStorage.getItem(STYLEKEY) || "null") || {};
+  for (const k of ["routeColor", "legColor"]) if (/^#[0-9a-f]{6}$/i.test(s[k])) ST[k] = s[k];
+  for (const k of ["routeLine", "legLine"]) if (LINES.includes(s[k])) ST[k] = s[k];
+  if (ARROWS.includes(s.arrow)) ST.arrow = s.arrow;
+  for (const k in STYLEN) if (Number.isFinite(s[k])) ST[k] = Math.min(STYLEN[k][1], Math.max(STYLEN[k][0], s[k]));
+} catch {}
+const applyStyle = () => {
+  document.documentElement.style.setProperty("--m-route", ST.routeColor);
+  document.documentElement.style.setProperty("--m-lz", ST.legColor);
+};
+applyStyle();
+/* a line type as a canvas dash pattern; the dashes grow with thick lines so round caps do not close the gaps */
+const dash = (type, w) => {
+  const f = Math.max(1, w / 2.1);
+  return type === "dashed" ? [5 * f, 4 * f] : type === "dotted" ? [2 * f, 4 * f] : [];
+};
 const THUMB = new Set(DATA.thumbs || []),
   PHOTO = DATA.photos || {},
   tipImg = new Image();
@@ -168,6 +307,8 @@ const KEY = "lamang-runs-v2",
     useGZ: false,
     inv: false,
     poiNames: false,
+    /* custom markers shown on the map (Custom markers switch) */
+    cmShow: true,
     /* Start from my position: {lat, lng} set on the map, or null; while set it replaces the LZs and the starting COP */
     me: null,
     useCopS: false,
@@ -210,6 +351,7 @@ try {
     S.useGZ = !!s.useGZ;
     S.inv = !!s.inv;
     S.poiNames = !!s.poiNames;
+    if (typeof s.cmShow === "boolean") S.cmShow = s.cmShow;
     if (s.me && Number.isFinite(s.me.lat) && Number.isFinite(s.me.lng)) S.me = { lat: +s.me.lat, lng: +s.me.lng };
     if (typeof s.copStart === "string") S.copStart = s.copStart;
     if ("useCopS" in s || "useCopE" in s) {
@@ -257,6 +399,7 @@ const save = () => {
         useGZ: S.useGZ,
         inv: S.inv,
         poiNames: S.poiNames,
+        cmShow: S.cmShow,
         me: S.me,
         useCopS: S.useCopS,
         copStart: S.copStart,
@@ -351,6 +494,7 @@ const syncInputs = () => {
   $("useGZ").checked = S.useGZ;
   $("inv").checked = S.inv;
   $("poiNames").checked = S.poiNames;
+  $("cmShow").checked = S.cmShow;
   /* Start from my position: Set on map, Cancel while picking, Move once set (✕ clears); the starting COP steps aside */
   $("meSet").textContent = t(PICKME ? "me.cancel" : S.me ? "me.move" : "me.set");
   $("meSet").setAttribute("aria-pressed", String(PICKME));
@@ -389,68 +533,75 @@ function labelTypes() {
     cb.setAttribute("aria-label", t("ty.add", { n }));
   });
 }
-const groups = [...new Set(T.map((t) => t.group))].filter((g) => !OFFLIST.has(g));
-/* group names are UI text (grp.<group> in i18n.js), while the data keeps its English keys */
-const order = ["Containers", "Points of interest", "General"];
-groups.sort((a, b) => order.indexOf(a) - order.indexOf(b));
-groups.forEach((g) => {
-  const h = document.createElement("div");
-  h.className = "grp";
-  h.innerHTML = `<em style="font-style:normal"></em><span><button type="button" data-i18n="grp.all"></button><button type="button" data-i18n="grp.none"></button></span>`;
-  h.querySelector("em").dataset.i18n = "grp." + g;
-  typesEl.appendChild(h);
-  grpEls.push(h);
-  const idx = T.map((t, i) => i)
-    .filter((i) => T[i].group === g)
-    .sort((a, b) =>
-      g === "Points of interest"
-        ? T[b].n - T[a].n || T[a].name.localeCompare(T[b].name)
-        : T[a].name.localeCompare(T[b].name),
-    );
-  const [ba, bn] = h.querySelectorAll("button");
-  ba.onclick = () => {
-    idx.forEach((i) => S.sel.add(i));
-    syncBoxes();
-    changed();
-  };
-  bn.onclick = () => {
-    idx.forEach((i) => S.sel.delete(i));
-    syncBoxes();
-    changed();
-  };
-  const isPoi = g === "Points of interest";
-  idx.forEach((i) => {
-    const t = T[i],
-      l = document.createElement(isPoi ? "div" : "label");
-    l.className = "ty";
-    l.dataset.name = (t.name + " " + g).toLowerCase();
-    l.innerHTML = isPoi
-      ? `<input type="checkbox" id="ty${i}"><img alt=""><button type="button" class="tyname"></button><span class="c">${t.n}</span>`
-      : `<input type="checkbox" id="ty${i}"><img alt=""><span></span><span class="c">${t.n}</span>`;
-    if (isPoi) {
-      const nb = l.querySelector(".tyname");
-      nb.textContent = t.name;
-      poiLabels.push([nb, l.querySelector("input"), t.name]);
-      nb.onclick = () => focusType(i);
-    } else l.querySelector("span").textContent = t.name;
-    const im = l.querySelector("img");
-    if (DATA.icons[t.icon]) im.src = DATA.icons[t.icon];
-    else im.style.visibility = "hidden";
-    const cb = l.querySelector("input");
-    cb.onchange = () => {
-      cb.checked ? S.sel.add(i) : S.sel.delete(i);
-      changed();
-    };
-    tyBoxes.push([i, cb, l, h]);
-    typesEl.appendChild(l);
-  });
-});
-labelTypes();
-applyI18n(typesEl);
 const noMatch = document.createElement("p");
 noMatch.className = "nomatch";
 noMatch.hidden = true;
-typesEl.appendChild(noMatch);
+/* the list is (re)built from T: custom markers made routable can add a type or change a count, so it is redone then.
+   A custom type with no marker left is not listed. */
+function buildTypes() {
+  typesEl.textContent = "";
+  tyBoxes.length = grpEls.length = poiLabels.length = 0;
+  const groups = [...new Set(T.map((t) => t.group))].filter((g) => !OFFLIST.has(g));
+  /* group names are UI text (grp.<group> in i18n.js), while the data keeps its English keys */
+  const order = ["Containers", "Points of interest", "General"];
+  groups.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  groups.forEach((g) => {
+    const h = document.createElement("div");
+    h.className = "grp";
+    h.innerHTML = `<em style="font-style:normal"></em><span><button type="button" data-i18n="grp.all"></button><button type="button" data-i18n="grp.none"></button></span>`;
+    h.querySelector("em").dataset.i18n = "grp." + g;
+    typesEl.appendChild(h);
+    grpEls.push(h);
+    const idx = T.map((t, i) => i)
+      .filter((i) => T[i].group === g && !(T[i].custom && !T[i].n))
+      .sort((a, b) =>
+        g === "Points of interest"
+          ? T[b].n - T[a].n || T[a].name.localeCompare(T[b].name)
+          : T[a].name.localeCompare(T[b].name),
+      );
+    const [ba, bn] = h.querySelectorAll("button");
+    ba.onclick = () => {
+      idx.forEach((i) => S.sel.add(i));
+      syncBoxes();
+      changed();
+    };
+    bn.onclick = () => {
+      idx.forEach((i) => S.sel.delete(i));
+      syncBoxes();
+      changed();
+    };
+    const isPoi = g === "Points of interest";
+    idx.forEach((i) => {
+      const t = T[i],
+        l = document.createElement(isPoi ? "div" : "label");
+      l.className = "ty";
+      l.dataset.name = (t.name + " " + g).toLowerCase();
+      l.innerHTML = isPoi
+        ? `<input type="checkbox" id="ty${i}"><img alt=""><button type="button" class="tyname"></button><span class="c">${t.n}</span>`
+        : `<input type="checkbox" id="ty${i}"><img alt=""><span></span><span class="c">${t.n}</span>`;
+      if (isPoi) {
+        const nb = l.querySelector(".tyname");
+        nb.textContent = t.name;
+        poiLabels.push([nb, l.querySelector("input"), t.name]);
+        nb.onclick = () => focusType(i);
+      } else l.querySelector("span").textContent = t.name;
+      const im = l.querySelector("img");
+      if (DATA.icons[t.icon]) im.src = DATA.icons[t.icon];
+      else im.style.visibility = "hidden";
+      const cb = l.querySelector("input");
+      cb.onchange = () => {
+        cb.checked ? S.sel.add(i) : S.sel.delete(i);
+        changed();
+      };
+      tyBoxes.push([i, cb, l, h]);
+      typesEl.appendChild(l);
+    });
+  });
+  labelTypes();
+  applyI18n(typesEl);
+  typesEl.appendChild(noMatch);
+}
+buildTypes();
 function syncBoxes() {
   tyBoxes.forEach(([i, cb]) => (cb.checked = S.sel.has(i)));
   $("tyCount").textContent = `${S.sel.size} / ${tyBoxes.length}`;
@@ -1358,6 +1509,7 @@ function finish(res, ctx) {
   LOOTPTS = ctx.looted;
   NFPTS = ctx.nf;
   SEEN = new Set(ctx.seen.map(mkey));
+  SEENOBJ = new Set(ctx.seen);
   NFPLAN = new Set(ctx.nf.map(nfKey));
   SEENNF = new Set(ctx.seen.map(nfKey));
   updRecalc();
@@ -1427,7 +1579,8 @@ const lootLeft = (k) => (S.looted.has(k) ? LOOT_MS - (Date.now() - S.looted.get(
   setLooted = (p, on) => (on ? S.looted.set(mkey(p), Date.now()) : S.looted.delete(mkey(p)));
 const clock = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
 /* every position the last plan looked at (the selected types) */
-let SEEN = new Set();
+let SEEN = new Set(),
+  SEENOBJ = new Set();
 /* marks that differ from the snapshot the routes use (new ticks, or lapsed ones), counted on the Recalculate button */
 function updRecalc() {
   let n = 0;
@@ -1533,7 +1686,7 @@ let NFPLAN = new Set(),
   SEENNF = new Set(),
   NFBYKEY = null;
 const isNF = (m) => NF.has(nfKey(m)),
-  canNF = (m) => m && !m.door && !NOROUTE(m.t),
+  canNF = (m) => m && !m.door && !m.custom && !NOROUTE(m.t),
   nfMarker = (k) => (NFBYKEY ||= new Map(M.map((m) => [nfKey(m), m]))).get(k),
   fdate = (ms) =>
     new Date(ms).toLocaleString(locale(), {
@@ -1665,10 +1818,10 @@ function renderNF() {
 }
 
 /* ---------- notes and the right-click menu ---------- */
-/* Notes on containers, added from a route stop's right-click menu. Kept by marker id in their own storage key, like the Not
-   found list, so Server switch and Reset leave them alone and Export takes them along. A note stays with its container when it
-   drops off the routes: hovering it on the map still shows the note and a yellow chat bubble still marks it; the stop list
-   shows it under the stop's name. */
+/* Notes on containers, doors and POIs, added from a route stop's right-click menu or a POI name's (POI names switch). Kept by
+   marker id in their own storage key, like the Not found list, so Server switch and Reset leave them alone and Export /
+   Import take them along. A note stays with its container when it drops off the routes: hovering it on the map still shows
+   the note and a yellow chat bubble still marks it; the stop list shows it under the stop's name. */
 const NOTEKEY = "lamang-notes-v1",
   NOTEMAX = 300;
 const NOTES = new Map();
@@ -1680,8 +1833,8 @@ try {
         NOTES.set(e[0], e[1].slice(0, NOTEMAX));
     });
 } catch {}
-/* containers and key-locked doors take notes (a door's is kept by its lock's marker id); only containers can be Not found */
-const canNote = (m) => !!m && (canNF(m) || !!m.door),
+/* containers, key-locked doors (by their lock's marker id) and custom markers take notes; only the map's containers can be Not found */
+const canNote = (m) => !!m && (canNF(m) || !!m.door || !!m.custom),
   noteOf = (m) => NOTES.get(nfKey(m)) || "";
 function setNote(m, text) {
   text = text.trim().slice(0, NOTEMAX);
@@ -1695,16 +1848,23 @@ function setNote(m, text) {
   schedule();
 }
 /* The menu of a route stop, from a right-click on it on the map or on its stop-list row: Not found on or off (containers
-   only, not doors), Add / Edit note.
+   only, not doors), Add / Edit note. A POI name on the map (POI names switch) opens it with the note alone.
    Opens at the pointer; a click elsewhere (which does nothing else), Esc, Tab, scrolling or resizing closes it. */
 const ctxEl = $("ctxMenu");
 let CTX = null,
   ctxSwallow = false;
-function openCtx(m, x, y, from) {
-  CTX = { m, from };
-  $("ctxNf").hidden = !canNF(m);
-  $("ctxNf").textContent = t(isNF(m) ? "ctx.nfOff" : "ctx.nfOn");
-  $("ctxNote").textContent = t(noteOf(m) ? "ctx.noteEdit" : "ctx.noteAdd");
+function openCtx(m, x, y, from, at) {
+  CTX = { m, from, at };
+  /* a free spot (no m): Add marker here at `at`; a custom marker: Edit, routable point; route stops: Not found; all: note */
+  $("ctxAdd").hidden = !!m;
+  $("ctxEdit").hidden = $("ctxRoute").hidden = !m?.custom;
+  $("ctxRoute").textContent = t(m?.type ? "ctx.routeEdit" : "ctx.route");
+  $("ctxNf").hidden = !(m && canNF(m) && m.run);
+  $("ctxNote").hidden = !canNote(m);
+  if (m) {
+    $("ctxNf").textContent = t(isNF(m) ? "ctx.nfOff" : "ctx.nfOn");
+    $("ctxNote").textContent = t(noteOf(m) ? "ctx.noteEdit" : "ctx.noteAdd");
+  }
   tip.hidden = true;
   ctxEl.hidden = false;
   const w = ctxEl.offsetWidth,
@@ -1765,12 +1925,30 @@ function closeCtx(refocus) {
     closeCtx(true);
     openNote(m);
   };
+  $("ctxAdd").onclick = () => {
+    if (!CTX) return;
+    const at = CTX.at;
+    closeCtx(true);
+    openMarker(null, at);
+  };
+  $("ctxEdit").onclick = () => {
+    if (!CTX) return;
+    const m = CTX.m;
+    closeCtx(true);
+    openMarker(m);
+  };
+  $("ctxRoute").onclick = () => {
+    if (!CTX) return;
+    const m = CTX.m;
+    closeCtx(true);
+    openRoutable(m);
+  };
 }
 /* Add / Edit note: Save needs some text; Delete (only when editing) takes the note off; Ctrl+Enter saves */
 let NOTEM = null;
 function openNote(m) {
   const had = noteOf(m),
-    type = T[m.t].name;
+    type = m.t != null ? T[m.t].name : t("cm.kind");
   NOTEM = m;
   $("noteT").textContent = t(had ? "note.editTitle" : "note.addTitle");
   $("noteFor").textContent = [m.label || type, m.label && m.label !== type ? type : "", m.poi].filter(Boolean).join(" · ");
@@ -1803,6 +1981,171 @@ function openNote(m) {
     dlg.close();
   };
   $("noteCancel").onclick = () => dlg.close();
+}
+/* a custom marker changed. Made routable or not, deleted while routable, its type changed: the routable ones re-join M,
+   the type list is rebuilt with the new counts and the routes are planned again. Otherwise only the map and panel redraw. */
+function cmChanged(replan) {
+  saveMarkers();
+  if (replan) {
+    cmLink();
+    NFBYKEY = null;
+    buildTypes();
+    filterTypes();
+    changed();
+  } else {
+    detail();
+    schedule();
+  }
+}
+/* Add / Edit marker: a name (needed) and an icon; a new marker takes the icon used last and shows the custom markers if they
+   were hidden. Delete (editing only) removes the marker, its note, and its stops if it was routable. */
+let CMEDIT = null,
+  CMAT = null,
+  cmLast = "pin";
+function openMarker(m, at) {
+  CMEDIT = m;
+  CMAT = at || null;
+  $("cmT").textContent = t(m ? "cm.editTitle" : "cm.addTitle");
+  $("cmName").value = m ? m.label : "";
+  const ic = m ? m.mi : cmLast;
+  document.querySelectorAll("#cmIcons input").forEach((r) => (r.checked = r.value === ic));
+  $("cmDel").hidden = !m;
+  $("cmOk").textContent = t(m ? "note.save" : "cm.add");
+  $("cmOk").disabled = !m;
+  tip.hidden = true;
+  $("cmDlg").showModal();
+  $("cmName").focus();
+}
+{
+  const dlg = $("cmDlg"),
+    inp = $("cmName"),
+    pick = $("cmIcons");
+  for (const k in MICONS) {
+    const l = document.createElement("label"),
+      r = document.createElement("input"),
+      im = document.createElement("img"),
+      s = document.createElement("span");
+    l.className = "cmic";
+    r.type = "radio";
+    r.name = "cmIcon";
+    r.value = k;
+    im.src = DATA.icons["cm-" + k];
+    im.alt = "";
+    s.dataset.i18n = "cm.icon." + k;
+    l.append(r, im, s);
+    pick.appendChild(l);
+  }
+  applyI18n(pick);
+  inp.oninput = () => ($("cmOk").disabled = !inp.value.trim());
+  $("cmForm").onsubmit = (e) => {
+    e.preventDefault();
+    const name = inp.value.trim().slice(0, MNAMEMAX);
+    if (!name) return;
+    const mi = pick.querySelector("input:checked")?.value || "pin";
+    cmLast = mi;
+    if (CMEDIT) Object.assign(CMEDIT, { label: name, mi, icon: "cm-" + mi });
+    else {
+      const id = "cm" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      MARKERS.push(cmObj({ id, lat: CMAT.lat, lng: CMAT.lng, name, icon: mi }));
+      if (!S.cmShow) {
+        S.cmShow = true;
+        save();
+        syncInputs();
+      }
+    }
+    cmChanged(false);
+    dlg.close();
+  };
+  $("cmDel").onclick = () => {
+    const m = CMEDIT;
+    MARKERS = MARKERS.filter((o) => o !== m);
+    if (noteOf(m)) setNote(m, "");
+    cmChanged(!!m.type);
+    dlg.close();
+  };
+  $("cmCancel").onclick = () => dlg.close();
+}
+/* Make this point a routable point: its container type (one of the map's, or a new one of yours, which joins the Container
+   types list ticked) and its sector (preset to the nearest of the map's markers'), which names its route and counts for
+   Forbidden sectors. It is then planned like the map's containers whenever its type is ticked. "Make it a plain marker"
+   takes it off the routes again. */
+let RTM = null;
+const nearestSec = (p) => {
+  let b = "",
+    bd = 1e18;
+  for (let i = 0; i < M0; i++)
+    if (M[i].poi && D(M[i], p) < bd) {
+      bd = D(M[i], p);
+      b = M[i].poi;
+    }
+  return b;
+};
+const rtCheck = () =>
+  !($("rtOk").disabled = !$("rtType").value || ($("rtType").value === "+" && !$("rtNew").value.trim()));
+function openRoutable(m) {
+  RTM = m;
+  const ty = $("rtType"),
+    sec = $("rtSec");
+  ty.textContent = "";
+  ty.add(new Option(t("rt.pick"), ""));
+  T.map((_, i) => i)
+    .filter((i) => T[i].group === "Containers" && !(T[i].custom && !T[i].n && T[i].id !== m.type))
+    .sort((a, b) => T[a].name.localeCompare(T[b].name, locale()))
+    .forEach((i) => ty.add(new Option(T[i].name + (T[i].custom ? " ★" : ""), T[i].id)));
+  ty.add(new Option(t("rt.newType"), "+"));
+  ty.value = m.type || "";
+  $("rtNew").value = "";
+  $("rtNew").hidden = true;
+  sec.textContent = "";
+  sec.add(new Option(t("rt.noSec"), ""));
+  [...new Set(M.slice(0, M0).map((p) => p.poi).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "hu"))
+    .forEach((s) => sec.add(new Option(s, s)));
+  sec.value = m.type ? m.poi : nearestSec(m);
+  $("rtFor").textContent = m.label;
+  $("rtOff").hidden = !m.type;
+  $("rtOk").textContent = t(m.type ? "note.save" : "rt.ok");
+  rtCheck();
+  tip.hidden = true;
+  $("rtDlg").showModal();
+  ty.focus();
+}
+{
+  const dlg = $("rtDlg");
+  $("rtType").onchange = () => {
+    $("rtNew").hidden = $("rtType").value !== "+";
+    if (!$("rtNew").hidden) $("rtNew").focus();
+    rtCheck();
+  };
+  $("rtNew").oninput = rtCheck;
+  $("rtForm").onsubmit = (e) => {
+    e.preventDefault();
+    if (!rtCheck()) return;
+    let id = $("rtType").value;
+    if (id === "+") {
+      const name = $("rtNew").value.trim().slice(0, MNAMEMAX),
+        same = T.find((x) => x.group === "Containers" && x.name.toLowerCase() === name.toLowerCase());
+      if (same) id = same.id;
+      else {
+        id = "cust-" + Date.now().toString(36);
+        T.push({ id, name, group: "Containers", n: 0, icon: RTM.icon, custom: true });
+        N0.push(0);
+        TID.set(id, T.length - 1);
+        S.sel.add(T.length - 1);
+      }
+    }
+    RTM.type = id;
+    RTM.poi = $("rtSec").value;
+    cmChanged(true);
+    dlg.close();
+  };
+  $("rtOff").onclick = () => {
+    RTM.type = null;
+    RTM.poi = "";
+    cmChanged(true);
+    dlg.close();
+  };
+  $("rtCancel").onclick = () => dlg.close();
 }
 
 /* ---------- trader prices ---------- */
@@ -2077,18 +2420,25 @@ function detail() {
     d.lastChild.textContent = v;
     det.appendChild(d);
   };
+  /* the start or end point; the line under it explains a COP or your position (a plain LZ needs none) */
   const lzRow = (tag, l, d, txt) => {
     const e = document.createElement("div");
     e.className = "lz";
-    e.innerHTML = `<span class="k"></span><b></b><span class="v">${fm(d)} m</span><span class="k" style="grid-column:1/-1;text-transform:none;letter-spacing:0;font-weight:400"></span>`;
+    e.innerHTML = `<span class="k"></span><b></b><span class="v">${fm(d)} m</span>`;
     e.firstChild.textContent = tag;
     e.querySelector("b").textContent = nm(l);
-    e.lastChild.textContent = txt;
+    if (txt) {
+      const x = document.createElement("span");
+      x.className = "k";
+      x.style.cssText = "grid-column:1/-1;text-transform:none;letter-spacing:0;font-weight:400";
+      x.textContent = txt;
+      e.appendChild(x);
+    }
     det.appendChild(e);
   };
   /* a COP end point may have won over a nearer LZ thanks to the COP advantage: then say which LZ was nearer */
   const endTxt = () => {
-    if (r.B.lz.kind !== "cop") return t("det.endLz");
+    if (r.B.lz.kind !== "cop") return "";
     const last = r.seq[r.n - 1],
       lz = nearestIn(
         LZE.filter((l) => l.kind !== "cop"),
@@ -2102,7 +2452,7 @@ function detail() {
     t("det.start"),
     r.A.lz,
     r.A.d,
-    t(r.A.lz.kind === "cop" ? "det.startCop" : r.A.lz.kind === "me" ? "det.startMe" : "det.startLz"),
+    r.A.lz.kind === "cop" ? t("det.startCop") : r.A.lz.kind === "me" ? t("det.startMe") : "",
   );
   kv(t("det.containers"), r.boxes + (r.n > r.boxes ? t("det.doors", { n: r.n - r.boxes }) : ""));
   kv(t("det.avg"), fm(r.avg) + " m");
@@ -2297,6 +2647,11 @@ $("poiNames").onchange = (e) => {
   save();
   schedule();
 };
+$("cmShow").onchange = (e) => {
+  S.cmShow = e.target.checked;
+  save();
+  schedule();
+};
 ["legNum", "legLen", "legHead", "zoneB"].forEach(
   (id) =>
     ($(id).onchange = (e) => {
@@ -2378,8 +2733,8 @@ const cv = $("cv"),
   bg = new Image();
 bg.src = "lamang.jpg";
 bg.onload = () => schedule();
-if (IMG.landingZone)
-  $("lgLz").innerHTML = `<img src="${DATA.icons.landingZone}" alt="" width="14" height="14"> Landing zone`;
+/* the map legend's pictures that come from the map data (landing zone, a custom POI icon) */
+document.querySelectorAll("[data-lgicon]").forEach((im) => (im.src = DATA.icons[im.dataset.lgicon] || ""));
 let W = 0,
   H = 0,
   dpr = 1,
@@ -2536,6 +2891,10 @@ function schedule() {
 }
 function draw() {
   const s = sc();
+  /* icon sizes from Display settings: containers and doors, LZs / COPs / my position, custom POIs */
+  const ICONK = ST.iconSize / 100,
+    LZK = ST.lzSize / 100,
+    CMK = ST.cmSize / 100;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = "#1b2a18";
   ctx.fillRect(0, 0, W, H);
@@ -2640,13 +2999,16 @@ function draw() {
   [...RUNS.filter((r) => r !== F), ...(F ? [F] : [])].forEach((r) => {
     const on = !F || F === r,
       a = on ? 1 : 0.3,
-      w = F === r ? 2.6 : 1.6;
-    line([r.A.lz, r.seq[0]], LC, w * 0.8, [5, 4], a);
-    line([r.seq[r.n - 1], r.B.lz], LC, w * 0.8, [2, 4], a);
-    line(r.seq, RC, w, [], a);
+      k = F === r ? 1 : 0.62,
+      rw = ST.routeWidth * k,
+      lw = ST.legWidth * k;
+    /* widths and line types from Display settings; the walk out to the end point stays dotted */
+    line([r.A.lz, r.seq[0]], LC, lw, dash(ST.legLine, lw), a);
+    line([r.seq[r.n - 1], r.B.lz], LC, lw, dash("dotted", lw), a);
+    line(r.seq, RC, rw, dash(ST.routeLine, rw), a);
     /* arrowheads just before each stop show the walking direction */
-    const iz = (V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22) + (F === r ? 4 : 0),
-      ah = F === r ? 7 : 5;
+    const iz = (V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22) * ICONK + (F === r ? 4 : 0),
+      ah = ST.arrowSize * (F === r ? 1 : 0.7);
     ctx.globalAlpha = a;
     const legs = [
       [r.A.lz, r.seq[0], LC],
@@ -2669,10 +3031,22 @@ function draw() {
         by = ty - uy * ah * 1.6,
         px = -uy * ah,
         py = ux * ah;
+      /* the arrowhead type from Display settings: a filled triangle, an open chevron, or none */
+      if (ST.arrow === "none") return;
       ctx.beginPath();
-      ctx.moveTo(tx, ty);
-      ctx.lineTo(bx + px, by + py);
+      ctx.moveTo(bx + px, by + py);
+      ctx.lineTo(tx, ty);
       ctx.lineTo(bx - px, by - py);
+      ctx.lineJoin = ctx.lineCap = "round";
+      if (ST.arrow === "chevron") {
+        ctx.lineWidth = Math.max(2, ah / 2.6) + 3;
+        ctx.strokeStyle = HALO;
+        ctx.stroke();
+        ctx.lineWidth = Math.max(2, ah / 2.6);
+        ctx.strokeStyle = col;
+        ctx.stroke();
+        return;
+      }
       ctx.closePath();
       ctx.lineWidth = 2;
       ctx.strokeStyle = HALO;
@@ -2688,7 +3062,7 @@ function draw() {
   const BK = "#111111",
     BH = "rgba(255,255,255,.85)",
     BAIL = S.bail && SEL && !S.browse ? bailAhead(SEL) : [],
-    biz = (V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22) + 4;
+    biz = (V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22) * ICONK + 4;
   const blk = (u, v, dash, gap) => {
     const [x1, y1] = toS(u),
       [x2, y2] = toS(v);
@@ -2753,7 +3127,7 @@ function draw() {
     const [x, y] = toS(l);
     if (x < -20 || y < -20 || x > W + 20 || y > H + 20) return;
     const hi = F && (F.A.lz === l || F.B.lz === l),
-      z = hi ? 22 : 15;
+      z = (hi ? 22 : 15) * LZK;
     ctx.globalAlpha = F && !hi ? 0.6 : 1;
     if (lzIm && lzIm.complete) ctx.drawImage(lzIm, x - z / 2, y - z / 2, z, z);
     else {
@@ -2789,7 +3163,7 @@ function draw() {
       const [x, y] = toS(l);
       if (x < -20 || y < -20 || x > W + 20 || y > H + 20) return;
       const hi = F && (F.A.lz === l || F.B.lz === l),
-        z = hi ? 24 : 16;
+        z = (hi ? 24 : 16) * LZK;
       ctx.globalAlpha = F && !hi ? 0.6 : 1;
       const im = IMG[l.icon] && tinted(IMG[l.icon], COPC);
       if (im) ctx.drawImage(im, x - z / 2, y - z / 2, z, z);
@@ -2821,13 +3195,13 @@ function draw() {
   if (me) {
     const [x, y] = toS(me);
     if (x > -30 && y > -30 && x < W + 30 && y < H + 50) {
-      const r = 8,
-        hy = y - 15;
+      const r = 8 * LZK,
+        hy = y - 15 * LZK;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x - 2, y - 4, x - r, hy + 5, x - r, hy);
+      ctx.bezierCurveTo(x - 2 * LZK, y - 4 * LZK, x - r, hy + 5 * LZK, x - r, hy);
       ctx.arc(x, hy, r, Math.PI, 0);
-      ctx.bezierCurveTo(x + r, hy + 5, x + 2, y - 4, x, y);
+      ctx.bezierCurveTo(x + r, hy + 5 * LZK, x + 2 * LZK, y - 4 * LZK, x, y);
       ctx.closePath();
       ctx.fillStyle = "#2fbf71";
       ctx.strokeStyle = HALO;
@@ -2836,7 +3210,7 @@ function draw() {
       ctx.stroke();
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(x, hy, 3, 0, 7);
+      ctx.arc(x, hy, 3 * LZK, 0, 7);
       ctx.fill();
       ctx.font = "500 11px IBM Plex Sans, system-ui, sans-serif";
       ctx.textAlign = "center";
@@ -2863,7 +3237,7 @@ function draw() {
     drawn.push({ x, y, r: 12, kind: "ob", o: b });
   });
   /* locks near the shown route that are not stops: small lock icons, a yellow ring where you have the key; click adds one */
-  const zb = V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22;
+  const zb = (V.w > 9000 ? 15 : V.w > 4000 ? 18 : 22) * ICONK;
   if (F && !S.browse)
     nearDoors(F).forEach(({ d, own }) => {
       if (d.run) return;
@@ -2949,17 +3323,19 @@ function draw() {
     if (canNote(p) && NOTES.has(nfKey(p))) noteBubble(x, y, z);
     drawn.push({ x, y, r: z / 2 + 2, kind: "container", o: p });
   });
+  /* leg labels follow the "Show Leg length" / "Show Leg Heading" switches. With no route open, every route's walk in from
+     its start point (the blue dashed line) carries one too, so you see how far each route begins, e.g. from your position */
+  const legTag = (u, v, dist, fg, k) => {
+    const lines = [S.legLen ? fm(dist) + " m" : null, S.legHead ? heading(u, v) : null].filter(Boolean);
+    if (!lines.length) return;
+    const [a, b] = toS(u),
+      [c, d] = toS(v);
+    if (Math.hypot(c - a, d - b) <= 46) return;
+    tag((a + c) / 2, (b + d) / 2, lines, fg, "rgba(13,19,11,.82)");
+  };
+  if (!F) RUNS.forEach((r) => legTag(r.A.lz, r.seq[0], r.A.d, LC, 1));
   if (F) {
     const r = F;
-    /* leg labels follow the "Show Leg length" / "Show Leg Heading" switches */
-    const legTag = (u, v, dist, fg, k) => {
-      const lines = [S.legLen ? fm(dist) + " m" : null, S.legHead ? heading(u, v) : null].filter(Boolean);
-      if (!lines.length) return;
-      const [a, b] = toS(u),
-        [c, d] = toS(v);
-      if (Math.hypot(c - a, d - b) <= 46) return;
-      tag((a + c) / 2, (b + d) / 2, lines, fg, "rgba(13,19,11,.82)");
-    };
     r.seq.forEach((p, i) => {
       if (i) legTag(r.seq[i - 1], p, r.legs[i], RC, i + 1);
     });
@@ -3022,16 +3398,46 @@ function draw() {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
+  /* custom markers (Custom markers switch): the icon, the name under it like a landing zone's, the note bubble. A routable one
+     whose type is ticked is drawn as a container instead (route stop, looted tick...) */
+  if (S.cmShow)
+    MARKERS.forEach((m) => {
+      if (SEENOBJ.has(m)) return;
+      const [x, y] = toS(m);
+      if (x < -60 || y < -30 || x > W + 60 || y > H + 30) return;
+      const z = 22 * CMK,
+        im = IMG[m.icon];
+      if (im && im.complete && im.naturalWidth) ctx.drawImage(im, x - z / 2, y - z / 2, z, z);
+      ctx.font = "500 11px IBM Plex Sans, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.lineJoin = "round";
+      const ty = y + z / 2 + 3,
+        tw = ctx.measureText(m.label).width;
+      ctx.strokeStyle = "rgba(13,19,11,.85)";
+      ctx.lineWidth = 3;
+      ctx.strokeText(m.label, x, ty);
+      ctx.fillStyle = "#f3f6ec";
+      ctx.fillText(m.label, x, ty);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      labelBoxes.push([x - tw / 2 - 2, ty - 1, x + tw / 2 + 2, ty + 13]);
+      if (NOTES.has(nfKey(m))) noteBubble(x, y, z);
+      drawn.push({ x, y, r: z / 2 + 3, kind: "custom", o: m });
+    });
   if (S.poiNames) {
-    /* every point-of-interest name, placed greedily so labels never overlap */
+    /* every point-of-interest name, placed greedily so labels never overlap (the ones with a note first); each takes
+       notes like a container: hover shows the note, a chat bubble marks it, right-click adds or edits it */
     const placed = labelBoxes,
-      hitR = (a) => placed.some((b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]);
+      hitR = (a) => placed.some((b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]),
+      noted = (p) => NOTES.has(nfKey(p)),
+      pois = NOTES.size ? [...ALLPOI.filter(noted), ...ALLPOI.filter((p) => !noted(p))] : ALLPOI;
     /* name centred under its dot */
     ctx.font = "500 11px IBM Plex Sans, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.lineJoin = "round";
-    ALLPOI.forEach((p) => {
+    pois.forEach((p) => {
       const [x, y] = toS(p);
       if (x < -80 || y < -20 || x > W + 80 || y > H + 20) return;
       const tw = ctx.measureText(p.label).width,
@@ -3047,6 +3453,8 @@ function draw() {
       ctx.strokeText(p.label, x, y + 4);
       ctx.fillStyle = "#f3f6ec";
       ctx.fillText(p.label, x, y + 4);
+      if (noted(p)) noteBubble(x, y, 6);
+      drawn.push({ x, y, r: 6, box: r, kind: "poi", o: p });
     });
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -3246,10 +3654,12 @@ function hit(e) {
     y = e.clientY - b.top;
   let best = null,
     bd = 1e9;
+  /* a hit is within r of the centre, or inside box ([left, top, right, bottom], a POI's dot and name) */
   for (let i = drawn.length - 1; i >= 0; i--) {
     const d = drawn[i],
-      dd = Math.hypot(d.x - x, d.y - y);
-    if (dd <= d.r && dd < bd) {
+      dd = Math.hypot(d.x - x, d.y - y),
+      on = d.box ? x >= d.box[0] && x <= d.box[2] && y >= d.box[1] && y <= d.box[3] : dd <= d.r;
+    if (on && dd < bd) {
       bd = dd;
       best = d;
     }
@@ -3296,6 +3706,15 @@ cv.addEventListener("mousemove", (e) => {
     SEL && SEL.A.lz === o && L.push(t("tip.lzStart", { route: SEL.label, d: fm(SEL.A.d) }));
     SEL && SEL.B.lz === o && L.push(t("tip.lzEnd", { route: SEL.label, d: fm(SEL.B.d) }));
   } else if (best.kind === "ob") L.push("Operation Base");
+  else if (best.kind === "custom") {
+    L.push(o.label, t("cm.kind") + " · " + t("cm.icon." + o.mi) + (o.type ? " · " + t("cm.routable", { type: T[o.t]?.name || "" }) : ""));
+    if (noteOf(o)) L.push(tipNote(o));
+    L.push(t("cm.tip"));
+  } else if (best.kind === "poi") {
+    L.push(o.label + (o.poi && o.poi !== o.label ? " · " + o.poi : ""));
+    if (noteOf(o)) L.push(tipNote(o));
+    L.push(t("ctx.tipNote"));
+  }
   else {
     L.push(NOROUTE(o.t) ? short(o.label) : o.label);
     L.push((o.door ? t("tip.keyDoor") : T[o.t].name) + (o.poi ? " · " + o.poi : ""));
@@ -3327,7 +3746,8 @@ cv.addEventListener("mousemove", (e) => {
       else if (S.planExcl.has(mkey(o))) L.push(t("tip.lapsed"));
       L.push(t(left > 0 ? "tip.unmark" : "tip.mark", { min: LOOT_MIN }));
     }
-    if (o.run && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipDoor"));
+    if (o.custom) L.push(t("cm.tip"));
+    else if (o.run && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipNote"));
   }
   tip.textContent = "";
   const ph = best.kind === "container" && photoFor(o.id);
@@ -3434,12 +3854,16 @@ cv.addEventListener("dblclick", (e) => {
 });
 const ptrs = new Map();
 let pinch = null;
-/* right-click on a route stop: its menu (Not found, note); anywhere else on the map it does nothing, no browser menu either */
+/* right-click on a route stop: its menu (Not found, note); on a POI name (POI names switch): its note; on a custom marker:
+   edit, routable point, note; anywhere else: Add marker here. Never the browser's menu */
 cv.addEventListener("contextmenu", (e) => {
   e.preventDefault();
   if (MEAS_ON) return;
-  const { best } = hit(e);
-  if (best && best.kind === "container" && best.o.run && canNote(best.o)) openCtx(best.o, e.clientX, e.clientY, cv);
+  const { best, x, y } = hit(e),
+    o = best && best.o;
+  if (best && ((best.kind === "container" && (o.run || o.custom)) || best.kind === "poi" || best.kind === "custom") && canNote(o))
+    openCtx(o, e.clientX, e.clientY, cv);
+  else openCtx(null, e.clientX, e.clientY, cv, { lat: V.y - y / sc(), lng: V.x + x / sc() });
 });
 cv.addEventListener("pointerdown", (e) => {
   cv.setPointerCapture(e.pointerId);
@@ -3766,6 +4190,58 @@ $("exportBtn").onclick = () => {
       return;
     }
     location.reload();
+  };
+}
+
+/* ---------- display settings window ---------- */
+/* every control names its setting (data-st); a change shows on the map at once and is saved. Reset to defaults brings the
+   original look back */
+{
+  const dlg = $("cfgDlg"),
+    ctl = [...dlg.querySelectorAll("[data-st]")];
+  const store = () => {
+    if (FROZEN) return;
+    try {
+      localStorage.setItem(STYLEKEY, JSON.stringify(ST));
+    } catch {}
+  };
+  /* line and arrowhead types in the current language; values and readouts (px, or % for the icon sizes) from ST */
+  const show = () => {
+    ctl.forEach((c) => {
+      const k = c.dataset.st;
+      if (c.tagName === "SELECT") {
+        c.textContent = "";
+        (k === "arrow" ? ARROWS : LINES).forEach((v) => c.add(new Option(t("cfg." + v), v)));
+      }
+      c.value = ST[k];
+      const o = c.nextElementSibling;
+      if (o && o.tagName === "OUTPUT")
+        o.textContent = /^(icon|lz|cm)Size$/.test(k) ? ST[k] + "%" : (+ST[k]).toLocaleString(locale()) + " px";
+    });
+  };
+  ctl.forEach(
+    (c) =>
+      (c.oninput = () => {
+        const k = c.dataset.st;
+        ST[k] = k in STYLEN ? Math.min(STYLEN[k][1], Math.max(STYLEN[k][0], +c.value)) : c.value;
+        applyStyle();
+        store();
+        show();
+        schedule();
+      }),
+  );
+  $("cfgBtn").onclick = () => {
+    tip.hidden = true;
+    show();
+    dlg.showModal();
+  };
+  $("cfgClose").onclick = () => dlg.close();
+  $("cfgReset").onclick = () => {
+    Object.assign(ST, STYLE0);
+    applyStyle();
+    store();
+    show();
+    schedule();
   };
 }
 
