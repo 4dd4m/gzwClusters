@@ -2014,3 +2014,51 @@ td input[type="checkbox"] {
     white-space: normal;
   }
 }
+
+/* the route panel only while a route is open: hidden when none is; on wide screens it slides down and fades out, the
+   routes list growing to the whole column, and slides back up from the bottom when a route is opened */
+.right.nosel .detpanel {
+  display: none;
+}
+@media (min-width: 1301px) {
+  /* the column clips the route panel while it is slid down (hidden), so its offset never reaches past the column and
+     adds a page scrollbar */
+  .right {
+    overflow: hidden;
+    overflow: clip;
+  }
+  .right .detpanel {
+    overflow: hidden;
+    transition:
+      flex-grow 0.35s ease,
+      margin-top 0.35s ease,
+      transform 0.35s ease,
+      opacity 0.3s ease,
+      visibility 0s;
+  }
+  .right.nosel .detpanel {
+    display: flex;
+    flex-grow: 0;
+    margin-top: -14px;
+    transform: translateY(48px);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      flex-grow 0.35s ease,
+      margin-top 0.35s ease,
+      transform 0.35s ease,
+      opacity 0.25s ease,
+      visibility 0s 0.35s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .right .detpanel,
+  .right.nosel .detpanel {
+    transition: none;
+  }
+}
+
+/* until the page's first plan is drawn: a route restored on load shows its panel at once, no slide */
+.right.noanim .detpanel {
+  transition: none;
+}

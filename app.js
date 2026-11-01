@@ -17,7 +17,7 @@ const M = DATA.marks.map((a, i) => ({
    container. Stored apart from the settings (Server switch and Reset leave them alone, Export / Import take them along) as
    {markers: [{id, lat, lng, name, icon, type, sec}], types: [{id, name, icon}]}. A marker with a type is routable: it joins
    M as a container of that type, either a container type of the map or one of your own (types, added to T and so to the
-   Container types list), so the planner, looted ticks and notes treat it like any other container. MICONS: the icons, round
+   Container types list, in its own Custom POIs group), so the planner, looted ticks and notes treat it like any other container. MICONS: the icons, round
    badges whose pictures serve the dialog's picker, the type list and the map alike. */
 const MKEY = "lamang-markers-v1",
   MNAMEMAX = 40,
@@ -66,7 +66,7 @@ try {
       T.push({
         id: c.id,
         name: c.name.trim().slice(0, MNAMEMAX),
-        group: "Containers",
+        group: "Custom",
         n: 0,
         icon: "cm-" + (c.icon in MICONS ? c.icon : "pin"),
         custom: true,
@@ -562,7 +562,7 @@ function buildTypes() {
   tyBoxes.length = grpEls.length = poiLabels.length = 0;
   const groups = [...new Set(T.map((t) => t.group))].filter((g) => !OFFLIST.has(g));
   /* group names are UI text (grp.<group> in i18n.js), while the data keeps its English keys */
-  const order = ["Containers", "Points of interest", "General"];
+  const order = ["Containers", "Custom", "Points of interest", "General"];
   groups.sort((a, b) => order.indexOf(a) - order.indexOf(b));
   groups.forEach((g) => {
     const h = document.createElement("div");
@@ -1584,6 +1584,8 @@ function finish(res, ctx) {
     first ? fitFull(false) : schedule();
   }
   applyBrowse();
+  /* the page's first plan shows a restored route's panel at once; only later openings and closings slide (app.css) */
+  if (first) requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector(".right").classList.remove("noanim")));
 }
 
 /* ---------- lists ---------- */
@@ -2107,10 +2109,18 @@ function openRoutable(m) {
     sec = $("rtSec");
   ty.textContent = "";
   ty.add(new Option(t("rt.pick"), ""));
-  T.map((_, i) => i)
-    .filter((i) => T[i].group === "Containers" && !(T[i].custom && !T[i].n && T[i].id !== m.type))
-    .sort((a, b) => T[a].name.localeCompare(T[b].name, locale()))
-    .forEach((i) => ty.add(new Option(T[i].name + (T[i].custom ? " ★" : ""), T[i].id)));
+  /* the map's container types, then your own (the ones with a point, and this one's) */
+  [
+    ["Containers", (i) => T[i].group === "Containers"],
+    ["Custom", (i) => T[i].group === "Custom" && (T[i].n > 0 || T[i].id === m.type)],
+  ].forEach(([g, ok]) => {
+    const idx = T.map((_, i) => i).filter(ok);
+    if (!idx.length) return;
+    const og = document.createElement("optgroup");
+    og.label = t("grp." + g);
+    idx.sort((a, b) => T[a].name.localeCompare(T[b].name, locale())).forEach((i) => og.appendChild(new Option(T[i].name, T[i].id)));
+    ty.appendChild(og);
+  });
   ty.add(new Option(t("rt.newType"), "+"));
   ty.value = m.type || "";
   $("rtNew").value = "";
@@ -2143,11 +2153,11 @@ function openRoutable(m) {
     let id = $("rtType").value;
     if (id === "+") {
       const name = $("rtNew").value.trim().slice(0, MNAMEMAX),
-        same = T.find((x) => x.group === "Containers" && x.name.toLowerCase() === name.toLowerCase());
+        same = T.find((x) => (x.group === "Containers" || x.group === "Custom") && x.name.toLowerCase() === name.toLowerCase());
       if (same) id = same.id;
       else {
         id = "cust-" + Date.now().toString(36);
-        T.push({ id, name, group: "Containers", n: 0, icon: RTM.icon, custom: true });
+        T.push({ id, name, group: "Custom", n: 0, icon: RTM.icon, custom: true });
         N0.push(0);
         TID.set(id, T.length - 1);
         S.sel.add(T.length - 1);
@@ -2422,6 +2432,8 @@ function detail() {
   const r = SEL || RUNS[0],
     det = $("det"),
     tb = $("wp");
+  /* no route open: the route panel slides away and the routes list takes the column (app.css, .nosel) */
+  document.querySelector(".right").classList.toggle("nosel", !SEL);
   det.textContent = "";
   tb.textContent = "";
   if (!r) {

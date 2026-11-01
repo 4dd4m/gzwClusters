@@ -150,6 +150,7 @@ const I18N = {
     "ty.searchAria": "Search container types",
     "ty.none": "Clear all",
     "grp.Containers": "Containers",
+    "grp.Custom": "Custom POIs",
     "grp.Points of interest": "Points of interest",
     "grp.General": "General",
     "grp.all": "All",
@@ -307,7 +308,7 @@ const I18N = {
     "cm.icon.enemy": "Enemy",
     "rt.title": "Routable point",
     "rt.note":
-      "A routable point is planned like the map's containers whenever its container type is ticked in Container types. Pick one of the map's types, or a new type of your own: it joins Container types, ticked. The sector names its route and counts for Forbidden sectors.",
+      "A routable point is planned like the map's containers whenever its container type is ticked in Container types. Pick one of the map's types, or a new type of your own: it joins Container types under Custom POIs, ticked. The sector names its route and counts for Forbidden sectors.",
     "rt.typeLabel": "Container type",
     "rt.pick": "Choose…",
     "rt.newType": "New type…",
@@ -552,6 +553,7 @@ const I18N = {
     "ty.searchAria": "Container típusok keresése",
     "ty.none": "Összes törlése",
     "grp.Containers": "Containerek",
+    "grp.Custom": "Saját POI-k",
     "grp.Points of interest": "POI",
     "grp.General": "Általános",
     "grp.all": "Mind",
@@ -708,7 +710,7 @@ const I18N = {
     "cm.icon.enemy": "Ellenség",
     "rt.title": "Útvonalpont",
     "rt.note":
-      "Az útvonalpontot úgy tervezi be a program, mint a térkép containereit, amikor a container típusa be van pipálva a Container típusok között. Válassz a térkép típusai közül, vagy adj meg egy új saját típust: bekerül a Container típusok közé, bepipálva. A szektor adja az útvonal nevét, és a Tiltott szektoroknál is számít.",
+      "Az útvonalpontot úgy tervezi be a program, mint a térkép containereit, amikor a container típusa be van pipálva a Container típusok között. Válassz a térkép típusai közül, vagy adj meg egy új saját típust: bekerül a Container típusok közé, a Saját POI-k csoportba, bepipálva. A szektor adja az útvonal nevét, és a Tiltott szektoroknál is számít.",
     "rt.typeLabel": "Container típus",
     "rt.pick": "Válassz…",
     "rt.newType": "Új típus…",
