@@ -190,7 +190,8 @@ const I18N = {
     "preset.hint":
       "<p><b>Named copies of your route setup:</b> the route settings, the selected container types, the forbidden sectors, reverse direction, doors added as stops and the selected route.</p><p><b>While a preset is selected,</b> every change is saved into it. Picking another preset loads it and plans its routes.</p><p><b>No preset</b> keeps the current routes, but saves into no preset.</p>",
     "preset.delete": "Delete",
-    "preset.copy": "Copy preset",
+    "preset.copy": "Copy",
+    "preset.copyTitle": "Copy preset",
     "preset.copyName": "{name} (copy)",
     "preset.copyOk": "Copy",
     "preset.reset": "Reset",
@@ -200,7 +201,7 @@ const I18N = {
     "preset.resetNoneTitle": "Reset route settings",
     "preset.resetNoneText":
       "This resets the current route settings: the container types, the settings, the forbidden sectors and the selected route go back to their defaults. Your presets, your keys, the language and the rest of your data stay as they are.",
-    "preset.new": "Create new preset",
+    "preset.new": "New",
     "preset.newTitle": "Create new preset",
     "preset.nameLabel": "Preset name",
     "preset.namePh": "e.g. Tiger Bay safes",
@@ -688,17 +689,18 @@ const I18N = {
     "preset.hint":
       "<p><b>Az útvonal-beállításaid elnevezett másolatai:</b> az útvonal-beállítások, a kiválasztott container típusok, a tiltott szektorok, a fordított irány, a megállóként hozzáadott ajtók és a kijelölt útvonal.</p><p><b>Amíg egy profil ki van választva,</b> minden változás bele mentődik. Másik profilt választva az töltődik be, és az útvonalai újratervezésre kerülnek.</p><p>A <b>Nincs profil</b> megtartja a jelenlegi útvonalakat, de egyik profilba sem ment.</p>",
     "preset.delete": "Törlés",
-    "preset.copy": "Profil másolása",
+    "preset.copy": "Másolás",
+    "preset.copyTitle": "Profil másolása",
     "preset.copyName": "{name} (másolat)",
     "preset.copyOk": "Másolás",
-    "preset.reset": "Profil visszaállítása",
+    "preset.reset": "Visszaállítás",
     "preset.resetTitle": "Profil visszaállítása",
     "preset.resetText":
       "Ez alaphelyzetbe állítja ezt a profilt: „{name}”. Az útvonal-beállításai, a container típusai, a tiltott szektorai és a kijelölt útvonala visszaáll alapértékre. A többi profilod, a kulcsaid és a többi adatod megmarad.",
     "preset.resetNoneTitle": "Útvonal-beállítások visszaállítása",
     "preset.resetNoneText":
       "Ez alaphelyzetbe állítja a jelenlegi útvonal-beállításokat: a container típusok, a beállítások, a tiltott szektorok és a kijelölt útvonal visszaáll alapértékre. A profiljaid, a kulcsaid, a nyelv és a többi adatod megmarad.",
-    "preset.new": "Új profil",
+    "preset.new": "Új",
     "preset.newTitle": "Új profil",
     "preset.nameLabel": "A profil neve",
     "preset.namePh": "pl. Tiger Bay széfek",

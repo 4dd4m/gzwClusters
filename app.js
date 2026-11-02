@@ -1086,7 +1086,7 @@ $("preset").onchange = (e) => {
     return !!n && !dup;
   };
   const open = (copy) => {
-    $("presetT").textContent = t(copy ? "preset.copy" : "preset.newTitle");
+    $("presetT").textContent = t(copy ? "preset.copyTitle" : "preset.newTitle");
     $("presetOk").textContent = t(copy ? "preset.copyOk" : "preset.create");
     inp.value = "";
     if (copy) {

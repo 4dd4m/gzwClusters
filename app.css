@@ -1513,10 +1513,17 @@ dialog::backdrop {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .presets .prow button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
   white-space: nowrap;
+}
+.presets .prow svg {
+  flex: none;
 }
 .presets .prow > :last-child {
   margin-left: auto;
