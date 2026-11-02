@@ -231,6 +231,10 @@ const D = (a, b) => Math.hypot(a.lat - b.lat, a.lng - b.lng),
     v >= 1000
       ? (v / 1000).toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " km"
       : Math.round(v) + " m";
+/* the game's map grid: 100 m squares counted from 10 km south-west of the map data's 0,0 (Outpost Gladiator,
+   4843 E 3557 N, is 148, 135 in game) */
+const G0 = 10000,
+  grid = (p) => Math.floor((p.lng + G0) / 100) + ", " + Math.floor((p.lat + G0) / 100);
 /* start/end points: landing zones, plus COPs when "COP as start point" / "COP as end point" is on */
 const COPS = M.filter((m) => T[m.t].name === "COP").map((m) => ({
   lat: m.lat,
@@ -2763,6 +2767,7 @@ addEventListener("keydown", (e) => {
 const cv = $("cv"),
   ctx = cv.getContext("2d"),
   tip = $("tip"),
+  gridAt = $("gridAt"),
   bg = new Image();
 bg.src = "lamang.jpg";
 bg.onload = () => schedule();
@@ -2773,7 +2778,11 @@ let W = 0,
   dpr = 1,
   V = { x: 0, y: 8000, w: 14000 },
   raf = 0,
-  drawn = [];
+  drawn = [],
+  /* the map's own motion: a glide after a flung drag or an easing zoom (GL), and a fit's tween */
+  GL = null,
+  glRaf = 0,
+  twRaf = 0;
 const sc = () => W / V.w,
   toS = (p) => [(p.lng - V.x) * sc(), (V.y - p.lat) * sc()];
 function size() {
@@ -2906,8 +2915,9 @@ function fitFull(anim) {
   tween(clampV({ x: PB.x0, y: PB.y1, w: Math.max(PB.x1 - PB.x0, ((PB.y1 - PB.y0) * W) / H) }), anim);
 }
 function tween(t, anim) {
+  stopMotion();
   const f = { ...V };
-  if (!anim || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (!anim || REDUCED()) {
     V = t;
     schedule();
     return;
@@ -2918,13 +2928,55 @@ function tween(t, anim) {
       e = 1 - Math.pow(1 - k, 3);
     V = { x: f.x + (t.x - f.x) * e, y: f.y + (t.y - f.y) * e, w: f.w + (t.w - f.w) * e };
     draw();
-    if (k < 1) requestAnimationFrame(step);
+    if (k < 1) twRaf = requestAnimationFrame(step);
   };
-  requestAnimationFrame(step);
+  twRaf = requestAnimationFrame(step);
 }
 function schedule() {
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(draw);
+}
+/* momentum: a flung drag keeps the map gliding and slowing down; wheel, button, key and double-click zooms ease to where
+   they are going (more wheel turns add to it). A new drag or pinch, a fit or another tween stops it */
+const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function stopMotion() {
+  cancelAnimationFrame(glRaf);
+  cancelAnimationFrame(twRaf);
+  GL = null;
+}
+function glide(now) {
+  if (!GL) return;
+  const dt = Math.max(0, Math.min(40, now - GL.t));
+  GL.t = now;
+  if (GL.kind === "pan") {
+    const x = V.x - (GL.vx * dt) / sc(),
+      y = V.y + (GL.vy * dt) / sc();
+    V = clampV({ x, y, w: V.w });
+    /* at the edge of the map in a direction: no more glide that way */
+    if (Math.abs(V.x - x) > 1e-6) GL.vx = 0;
+    if (Math.abs(V.y - y) > 1e-6) GL.vy = 0;
+    const k = Math.exp(-dt / 325);
+    GL.vx *= k;
+    GL.vy *= k;
+    if (Math.hypot(GL.vx, GL.vy) < 0.02) GL = null;
+  } else {
+    /* the map point under the cursor (ax, ay) stays there while the width eases to GL.w */
+    let w = V.w + (GL.w - V.w) * (1 - Math.exp(-dt / 80));
+    if (Math.abs(GL.w - w) < GL.w * 0.001) w = GL.w;
+    V = clampV({ x: GL.mx - (GL.ax * w) / W, y: GL.my + (GL.ay * w) / W, w });
+    if (w === GL.w) GL = null;
+  }
+  draw();
+  if (GL) glRaf = requestAnimationFrame(glide);
+}
+/* vx, vy: the drag's speed at release, screen px per ms */
+function fling(vx, vy) {
+  stopMotion();
+  const v = Math.hypot(vx, vy);
+  if (REDUCED() || v < 0.25) return;
+  const k = Math.min(1, 5 / v);
+  GL = { kind: "pan", vx: vx * k, vy: vy * k, t: performance.now() };
+  glRaf = requestAnimationFrame(glide);
 }
 function draw() {
   const s = sc();
@@ -2937,26 +2989,27 @@ function draw() {
   ctx.fillRect(0, 0, W, H);
   if (bg.complete && bg.naturalWidth) ctx.drawImage(bg, (0 - V.x) * s, (V.y - 8000) * s, 14000 * s, 8000 * s);
   drawTiles(s);
-  const step = V.w > 7000 ? 1000 : V.w > 3000 ? 500 : 250;
+  /* grid lines on the game's grid squares, labelled as in game (100 m units) */
+  const step = V.w > 7000 ? 1000 : V.w > 3000 ? 500 : V.w > 1200 ? 200 : 100;
   ctx.lineWidth = 1;
   ctx.strokeStyle = "rgba(255,255,255,.13)";
   ctx.font = "10px IBM Plex Mono, monospace";
   ctx.fillStyle = "rgba(243,246,236,.8)";
-  for (let x = Math.ceil(V.x / step) * step; x < V.x + V.w; x += step) {
+  for (let x = Math.ceil((V.x + G0) / step) * step - G0; x < V.x + V.w; x += step) {
     const sx = (x - V.x) * s;
     ctx.beginPath();
     ctx.moveTo(sx, 0);
     ctx.lineTo(sx, H);
     ctx.stroke();
-    ctx.fillText(x, sx + 3, 12);
+    ctx.fillText((x + G0) / 100, sx + 3, 12);
   }
-  for (let y = Math.floor(V.y / step) * step; y > V.y - (V.w * H) / W; y -= step) {
+  for (let y = Math.floor((V.y + G0) / step) * step - G0; y > V.y - (V.w * H) / W; y -= step) {
     const sy = (V.y - y) * s;
     ctx.beginPath();
     ctx.moveTo(0, sy);
     ctx.lineTo(W, sy);
     ctx.stroke();
-    ctx.fillText(y, 3, sy - 3);
+    ctx.fillText((y + G0) / 100, 3, sy - 3);
   }
   drawn = [];
   const css = getComputedStyle(document.documentElement),
@@ -3719,6 +3772,10 @@ function hit(e) {
   return { best, x, y };
 }
 cv.addEventListener("mousemove", (e) => {
+  /* the game's grid square under the cursor, next to the zoom label */
+  const gb = cv.getBoundingClientRect();
+  gridAt.textContent = t("gridAt", { g: grid({ lat: V.y - (e.clientY - gb.top) / sc(), lng: V.x + (e.clientX - gb.left) / sc() }) });
+  gridAt.hidden = false;
   if (MEAS_ON) {
     tip.hidden = true;
     if (MEAS && !MEAS.b) {
@@ -3836,6 +3893,7 @@ function placeTip() {
 }
 cv.addEventListener("mouseleave", () => {
   tip.hidden = true;
+  gridAt.hidden = true;
   if (MHOV) {
     MHOV = null;
     schedule();
@@ -3879,10 +3937,23 @@ cv.addEventListener("click", (e) => {
     schedule();
   }
 });
-function zoomAt(f, sx, sy) {
+/* zoom by f around screen point sx, sy; ease: glide there (wheel, buttons, keys, double-click), else at once (pinch) */
+function zoomAt(f, sx, sy, ease) {
   const mx = V.x + sx / sc(),
-    my = V.y - sy / sc(),
-    w = V.w * f,
+    my = V.y - sy / sc();
+  if (ease && !REDUCED()) {
+    const on = GL && GL.kind === "zoom",
+      w = clampV({ x: 0, y: 0, w: (on ? GL.w : V.w) * f }).w;
+    if (!on) {
+      stopMotion();
+      GL = { kind: "zoom", t: performance.now() };
+      glRaf = requestAnimationFrame(glide);
+    }
+    Object.assign(GL, { w, ax: sx, ay: sy, mx, my });
+    return;
+  }
+  stopMotion();
+  const w = V.w * f,
     t = clampV({ x: 0, y: 0, w });
   const s2 = W / t.w;
   V = clampV({ x: mx - sx / s2, y: my + sy / s2, w: t.w });
@@ -3894,7 +3965,7 @@ cv.addEventListener(
     e.preventDefault();
     if (MEAS_ON) return;
     const b = cv.getBoundingClientRect();
-    zoomAt(Math.pow(1.0018, e.deltaMode ? e.deltaY * 33 : e.deltaY), e.clientX - b.left, e.clientY - b.top);
+    zoomAt(Math.pow(1.0018, e.deltaMode ? e.deltaY * 33 : e.deltaY), e.clientX - b.left, e.clientY - b.top, true);
     tip.hidden = true;
   },
   { passive: false },
@@ -3902,10 +3973,13 @@ cv.addEventListener(
 cv.addEventListener("dblclick", (e) => {
   if (MEAS_ON) return;
   const b = cv.getBoundingClientRect();
-  zoomAt(0.5, e.clientX - b.left, e.clientY - b.top);
+  zoomAt(0.5, e.clientX - b.left, e.clientY - b.top, true);
 });
 const ptrs = new Map();
-let pinch = null;
+/* pinched: this gesture had two fingers (no glide after it); TRAIL: the dragging pointer's last positions, for its speed */
+let pinch = null,
+  pinched = false,
+  TRAIL = [];
 /* right-click on a route stop: its menu (Not found, note); on a POI name (POI names switch): its note; on a custom marker:
    edit, routable point, note; anywhere else: Add marker here. Never the browser's menu */
 cv.addEventListener("contextmenu", (e) => {
@@ -3920,10 +3994,17 @@ cv.addEventListener("contextmenu", (e) => {
 cv.addEventListener("pointerdown", (e) => {
   cv.setPointerCapture(e.pointerId);
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
-  moved = false;
+  /* a press on a gliding map only stops it: it is not a click */
+  moved = !!(GL && GL.kind === "pan");
+  stopMotion();
+  if (ptrs.size === 1) {
+    pinched = false;
+    TRAIL = [{ t: performance.now(), x: e.clientX, y: e.clientY }];
+  }
   if (ptrs.size === 2) {
     const [a, b] = [...ptrs.values()];
     pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) };
+    pinched = true;
   }
 });
 cv.addEventListener("pointermove", (e) => {
@@ -3933,6 +4014,10 @@ cv.addEventListener("pointermove", (e) => {
     dy = e.clientY - p.y;
   p.x = e.clientX;
   p.y = e.clientY;
+  if (ptrs.size === 1) {
+    TRAIL.push({ t: performance.now(), x: p.x, y: p.y });
+    if (TRAIL.length > 8) TRAIL.shift();
+  }
   if (Math.hypot(p.x - p.sx, p.y - p.sy) > 4) moved = true;
   if (!moved) return;
   tip.hidden = true;
@@ -3953,14 +4038,26 @@ cv.addEventListener("pointermove", (e) => {
   }
 });
 const endPtr = (e) => {
+  /* the last finger or the mouse let go of a one-pointer drag: glide on at the speed of its last 100 ms, unless it had
+     stopped before letting go */
+  const drag = e.type === "pointerup" && ptrs.size === 1 && ptrs.has(e.pointerId) && moved && !pinched && !MEAS_ON;
   ptrs.delete(e.pointerId);
   if (ptrs.size < 2) pinch = null;
   if (!ptrs.size) cv.classList.remove("dragging");
+  if (!drag) return;
+  const now = performance.now(),
+    R = TRAIL.filter((s) => now - s.t < 100),
+    a = R[0],
+    b = R[R.length - 1];
+  if (R.length > 1 && now - b.t < 50) {
+    const dt = Math.max(16, b.t - a.t);
+    fling((b.x - a.x) / dt, (b.y - a.y) / dt);
+  }
 };
 cv.addEventListener("pointerup", endPtr);
 cv.addEventListener("pointercancel", endPtr);
-$("zIn").onclick = () => zoomAt(0.6, W / 2, H / 2);
-$("zOut").onclick = () => zoomAt(1 / 0.6, W / 2, H / 2);
+$("zIn").onclick = () => zoomAt(0.6, W / 2, H / 2, true);
+$("zOut").onclick = () => zoomAt(1 / 0.6, W / 2, H / 2, true);
 /* Szögmérés (not saved): while on the map is frozen; 1st click = start, 2nd = end, 3rd clears. Clicking an icon snaps to it. */
 let MEAS_ON = false,
   MEAS = null,
@@ -4047,10 +4144,10 @@ cv.addEventListener("keydown", (e) => {
     return;
   }
   if (e.key === "+" || e.key === "=") {
-    zoomAt(0.6, W / 2, H / 2);
+    zoomAt(0.6, W / 2, H / 2, true);
     e.preventDefault();
   } else if (e.key === "-") {
-    zoomAt(1 / 0.6, W / 2, H / 2);
+    zoomAt(1 / 0.6, W / 2, H / 2, true);
     e.preventDefault();
   }
 });

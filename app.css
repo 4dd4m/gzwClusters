@@ -672,6 +672,9 @@ canvas.measuring {
   border-radius: 3px;
   pointer-events: none;
 }
+.zlvl span:not(:empty) + span:not([hidden])::before {
+  content: " · ";
+}
 .tipimg {
   display: block;
   width: 470px;
