@@ -13,9 +13,9 @@ import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unflatten } from "./devalue.mjs";
+import { SITE, get, pool, pageData } from "./site.mjs";
 
-const SITE = "https://gzwtacmap.com",
-  MAP = "lamang",
+const MAP = "lamang",
   ROOT = join(dirname(fileURLToPath(import.meta.url)), ".."),
   OUT = join(ROOT, "data.js"),
   args = new Set(process.argv.slice(2)),
@@ -31,42 +31,6 @@ const NAV_LZ = 1,
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const log = (...a) => console.log(...a);
-async function get(url, as = "json", tries = 3) {
-  for (let i = 1; ; i++) {
-    try {
-      const r = await fetch(url, { headers: { "user-agent": "kokesz-loot-runs data builder" } });
-      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-      return as === "json" ? await r.json() : as === "text" ? await r.text() : r;
-    } catch (e) {
-      if (i >= tries) throw new Error(`${url}: ${e.message}`);
-      await new Promise((ok) => setTimeout(ok, 800 * i));
-    }
-  }
-}
-/* runs fn over items, n at a time */
-async function pool(items, n, fn) {
-  const out = new Array(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(n, items.length) }, async () => {
-      while (next < items.length) {
-        const i = next++;
-        out[i] = await fn(items[i], i);
-      }
-    }),
-  );
-  return out;
-}
-/* a SvelteKit page's data: the first node whose root has `key` */
-async function pageData(path, key) {
-  const j = await get(`${SITE}${path}/__data.json`);
-  for (const n of j.nodes || [])
-    if (n && n.data) {
-      const d = unflatten(n.data);
-      if (d && key in d) return d;
-    }
-  throw new Error(`${path}: no "${key}" in page data`);
-}
 /* The marker list comes from a SvelteKit remote function whose URL has a build hash that changes on every deploy.
    Find it by walking the site's JS modules from the page's entry scripts. */
 async function remoteHash() {

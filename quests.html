@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Search and link previews. The address is the GitHub Pages one (also in sitemap.xml); change both if it moves. -->
+    <title>Gray Zone Warfare Quest Guide: All Tasks on the Map | Kokesz Loot Runs</title>
+    <meta
+      name="description"
+      content="Every Gray Zone Warfare task by vendor and location: briefings, task objects with photos and their spots on the Lamang map, plus my own guides."
+    />
+    <meta
+      name="keywords"
+      content="Gray Zone Warfare, GZW, quests, tasks, task guide, quest guide, walkthrough, Lamang map, task objects, Handshake, Gunny, Lab Rat, Banshee, Artisan, Turncoat"
+    />
+    <link rel="canonical" href="https://4dd4m.github.io/gzwClusters/quests.html" />
+    <meta name="theme-color" content="#151a13" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kokesz Loot Runs" />
+    <meta property="og:title" content="Gray Zone Warfare Quest Guide" />
+    <meta
+      property="og:description"
+      content="Every GZW task by vendor and location, with briefings, task objects, photos and their spots on the Lamang map."
+    />
+    <meta property="og:url" content="https://4dd4m.github.io/gzwClusters/quests.html" />
+    <meta property="og:image" content="https://4dd4m.github.io/gzwClusters/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="hu_HU" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Gray Zone Warfare Quest Guide" />
+    <meta
+      name="twitter:description"
+      content="Every GZW task with briefings, task objects and their spots on the Lamang map."
+    />
+    <meta name="twitter:image" content="https://4dd4m.github.io/gzwClusters/og-image.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="quests.css" />
+  </head>
+  <!-- Text comes from i18n.js (English or Hungarian): data-i18n* attributes name the keys. Tasks come from questdata.js
+       (gzwtacmap.com, built by tools/build-quests.mjs) and my-quests.js (my own tasks and guides, written by edit mode). -->
+  <body class="qpage">
+    <noscript>
+      <p class="noscript">
+        The Kokesz Loot Runs quest guide lists every Gray Zone Warfare task by vendor and location, with briefings, task
+        objects, photos and their spots on the Lamang map. Turn on JavaScript to use it.
+      </p>
+    </noscript>
+    <header>
+      <div class="brandrow">
+        <h1>Kokesz Loot Runs</h1>
+        <nav class="sitenav" data-i18n-aria="nav.aria">
+          <a href="index.html" data-i18n="nav.planner"></a
+          ><a href="quests.html" aria-current="page" data-i18n="nav.quests"></a>
+        </nav>
+      </div>
+      <div class="stats">
+        <button type="button" id="qAdd" class="keysbtn" hidden>
+          <i aria-hidden="true">+</i><span data-i18n="q.add"></span>
+        </button>
+        <div class="lang" role="radiogroup" aria-label="Language / Nyelv">
+          <button type="button" role="radio" data-lang="en" aria-checked="true" title="English">EN</button
+          ><button type="button" role="radio" data-lang="hu" aria-checked="false" title="Magyar">HU</button>
+        </div>
+      </div>
+    </header>
+    <!-- edit mode only: what is not in the repo yet, and the download that puts it there -->
+    <div class="qbar" id="qBar" role="status" hidden>
+      <span id="qBarText"></span>
+      <span class="qbarbtns">
+        <button type="button" id="qDownload" class="primary"></button>
+        <button type="button" id="qDiscard" data-i18n="q.discard"></button>
+      </span>
+    </div>
+    <main class="qlayout">
+      <section class="panel qlist" aria-labelledby="qListT">
+        <h2 id="qListT"><span data-i18n="q.heading"></span><small id="qCount"></small></h2>
+        <div class="qtools">
+          <input
+            type="search"
+            id="qSearch"
+            autocomplete="off"
+            data-i18n-placeholder="q.search"
+            data-i18n-aria="q.search"
+          />
+          <div class="qopts">
+            <label
+              ><span data-i18n="q.groupBy"></span>
+              <select id="qGroup">
+                <option value="vendor" data-i18n="q.byVendor"></option>
+                <option value="loc" data-i18n="q.byLoc"></option></select></label
+            ><label
+              ><span data-i18n="q.show"></span>
+              <select id="qShow">
+                <option value="all" data-i18n="q.f.all"></option>
+                <option value="main" data-i18n="q.f.main"></option>
+                <option value="side" data-i18n="q.f.side"></option>
+                <option value="contract" data-i18n="q.f.contract"></option>
+                <option value="mine" data-i18n="q.f.mine"></option>
+                <option value="deleted" data-i18n="q.f.deleted" hidden></option></select
+            ></label>
+          </div>
+        </div>
+        <div class="qgroups" id="qGroups"></div>
+      </section>
+      <section class="panel qdetail" id="qDetail" aria-live="polite"></section>
+    </main>
+    <p class="mapcredit qcredit" data-i18n-html="q.credit"></p>
+
+    <!-- a task's pictures, one at a time -->
+    <dialog id="qPic" class="qpicdlg" aria-labelledby="qPicT">
+      <div class="dlghead">
+        <h2 id="qPicT"></h2>
+        <button type="button" id="qPicClose" data-i18n="close"></button>
+      </div>
+      <figure><img id="qPicImg" alt="" /></figure>
+      <div class="dlgbtns">
+        <button type="button" id="qPicPrev" data-i18n="q.prev"></button>
+        <button type="button" id="qPicNext" data-i18n="q.next"></button>
+      </div>
+    </dialog>
+
+    <!-- edit mode: a task of my own, or my guide to one of gzwtacmap's -->
+    <dialog id="qEdit" class="qeditdlg" aria-labelledby="qEditT">
+      <div class="dlghead"><h2 id="qEditT"></h2></div>
+      <form id="qForm" class="dlgform" novalidate>
+        <p class="qhint" id="qBaseNote" data-i18n="q.fBaseNote" hidden></p>
+        <label for="qName" data-i18n="q.fName"></label>
+        <input type="text" id="qName" maxlength="80" autocomplete="off" />
+        <div class="qrow">
+          <span
+            ><label for="qVendor" data-i18n="q.fVendor"></label>
+            <input type="text" id="qVendor" maxlength="40" autocomplete="off" list="qVendors" /></span
+          ><span
+            ><label for="qLoc" data-i18n="q.fLoc"></label>
+            <input type="text" id="qLoc" maxlength="60" autocomplete="off" list="qLocs" /></span
+          ><span
+            ><label for="qType" data-i18n="q.fType"></label>
+            <select id="qType">
+              <option value="" data-i18n="q.typeNone"></option>
+              <option value="main" data-i18n="q.type.main"></option>
+              <option value="side" data-i18n="q.type.side"></option>
+              <option value="contract" data-i18n="q.type.contract"></option>
+              <option value="ltc" data-i18n="q.type.ltc"></option></select
+          ></span>
+        </div>
+        <datalist id="qVendors"></datalist>
+        <datalist id="qLocs"></datalist>
+        <datalist id="qKeys"></datalist>
+        <label for="qDesc" data-i18n="q.fDesc"></label>
+        <textarea id="qDesc" rows="6" maxlength="20000"></textarea>
+        <p class="qhint" data-i18n="q.fDescHint"></p>
+        <label for="qBrief" data-i18n="q.brief"></label>
+        <textarea id="qBrief" rows="5" maxlength="20000"></textarea>
+        <label for="qDebrief" data-i18n="q.debrief"></label>
+        <textarea id="qDebrief" rows="3" maxlength="20000"></textarea>
+        <span class="dlglabel" data-i18n="q.fPics"></span>
+        <div class="qethumbs" id="qThumbs"></div>
+        <div>
+          <button type="button" id="qAddPics" data-i18n="q.fAddPics"></button>
+          <input type="file" id="qPicFile" accept="image/*" multiple hidden />
+          <span class="qhint" data-i18n="q.fPicsHint"></span>
+        </div>
+        <span class="dlglabel" data-i18n="q.objs"></span>
+        <p class="qhint" data-i18n="q.fObjsHint"></p>
+        <div class="qmap qmap-edit">
+          <canvas id="qEditMap"></canvas>
+          <div class="qmtip" hidden></div>
+        </div>
+        <ol class="qeobjs" id="qObjs"></ol>
+        <input type="file" id="qObjPicFile" accept="image/*" hidden />
+        <p class="qerr" id="qErr" role="alert" hidden></p>
+        <div class="dlgbtns">
+          <button type="button" id="qDel" class="danger"></button>
+          <button type="button" id="qReset" data-i18n="q.reset" hidden></button>
+          <button type="button" id="qCancel" data-i18n="q.cancel"></button>
+          <button type="submit" class="primary" data-i18n="q.save"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="i18n.js"></script>
+    <script src="questdata.js"></script>
+    <script src="my-quests.js"></script>
+    <script src="quests.js"></script>
+  </body>
+</html>

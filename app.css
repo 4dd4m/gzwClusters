@@ -1183,6 +1183,33 @@ body.anim:not(.browse) .right {
   padding: 6px 10px;
   font-weight: 600;
 }
+/* the brand and the site's two pages (loot planner, quest guide), the open one underlined */
+.brandrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+.sitenav {
+  display: inline-flex;
+  gap: 2px;
+}
+.sitenav a {
+  font: 700 0.95rem/1 var(--display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 7px 3px;
+  border-bottom: 2px solid transparent;
+}
+.sitenav a:hover {
+  color: var(--ink);
+}
+.sitenav a[aria-current="page"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
 /* language switch: two joined buttons, the chosen one filled */
 .lang {
   display: inline-flex;
@@ -1851,6 +1878,10 @@ a.btnlink:hover {
 }
 .dlgnote a {
   color: var(--accent);
+}
+/* a fixed height, so the dialog does not shrink and re-centre (moving the search box) as the list filters down */
+#prDlg {
+  height: min(86vh, 900px);
 }
 .prbar {
   display: flex;

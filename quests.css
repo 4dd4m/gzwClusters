@@ -1,0 +1,574 @@
+/* Quest guide (quests.html), on the planner's look from app.css: the task list on the left (it scrolls by itself on wide
+   screens), the open task on the right; on phones one of the two at a time. */
+.qpage a {
+  color: var(--accent);
+}
+.qpage select {
+  font: 0.8rem var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 3px 6px;
+}
+.qlayout {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.qlist {
+  position: sticky;
+  top: 10px;
+  max-height: calc(100vh - 20px);
+  display: flex;
+  flex-direction: column;
+}
+.qtools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 9px;
+  border-bottom: 1px solid var(--line);
+}
+.qopts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.qopts label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.qgroups {
+  overflow: auto;
+  padding: 2px 0 8px;
+}
+.qgrp summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 4px;
+  list-style: none;
+  cursor: pointer;
+  font: 700 0.85rem/1 var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.qgrp summary::-webkit-details-marker {
+  display: none;
+}
+.qgrp summary::before {
+  content: "▾";
+  width: 0.8em;
+}
+.qgrp:not([open]) summary::before {
+  content: "▸";
+}
+.qgrp summary small {
+  margin-left: auto;
+  font: 400 0.7rem var(--mono);
+  letter-spacing: 0;
+}
+.qgrp ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px;
+}
+.qpage .qitem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.86rem;
+}
+.qitem:hover {
+  background: var(--grid);
+}
+.qitem[aria-current="true"] {
+  background: var(--hl);
+  box-shadow: inset 3px 0 0 var(--hl-line);
+}
+.qitem .qtags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.qb {
+  font: normal 0.64rem/1.3 var(--mono);
+  color: var(--muted);
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.qb.main {
+  color: var(--accent);
+  border-color: currentColor;
+}
+.qi {
+  display: inline-flex;
+  color: var(--muted);
+}
+.qi.guide {
+  color: var(--accent);
+}
+.qempty {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+}
+
+/* the open task */
+.qdetail {
+  min-height: 40vh;
+}
+.qdhead {
+  display: grid;
+  gap: 7px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.qdhead p {
+  margin: 0;
+}
+.panel .qtitle {
+  display: block;
+  padding: 0;
+  border: 0;
+  margin: 0;
+  font: 700 1.7rem/1.05 var(--display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.qmeta {
+  color: var(--muted);
+}
+.qflags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qflag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.76rem;
+}
+.qflag.key {
+  background: var(--hl);
+  border-color: var(--hl-line);
+}
+.qflag.mine {
+  color: var(--accent);
+  border-color: currentColor;
+}
+.qdeleted {
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+.qback {
+  display: none;
+  justify-self: start;
+  font-size: 0.85rem;
+}
+.qbody {
+  padding: 2px 16px 16px;
+}
+.qsec {
+  margin-top: 18px;
+}
+.qsec h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 9px;
+  font: 700 1rem/1 var(--display);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.qsec h3 small {
+  font: 400 0.72rem var(--mono);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.qsec p {
+  max-width: 78ch;
+  margin: 0 0 0.75em;
+}
+details.qsec summary {
+  list-style: none;
+  cursor: pointer;
+}
+details.qsec summary::-webkit-details-marker {
+  display: none;
+}
+details.qsec summary h3::before {
+  content: "▸";
+}
+details.qsec[open] summary h3::before {
+  content: "▾";
+}
+.qguide {
+  padding: 12px 14px 4px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.qpics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.qpics button {
+  width: 168px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 4px;
+}
+.qpics img,
+.qeth img,
+.qphoto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qhint {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* the small map, its point names on hover and its zoom buttons */
+.qmap {
+  position: relative;
+  height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #1b2a18;
+}
+.qmap canvas {
+  display: block;
+  touch-action: none;
+}
+.qmtip {
+  position: absolute;
+  max-width: 260px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: rgba(13, 19, 11, 0.9);
+  color: var(--m-text);
+  font-size: 0.78rem;
+  pointer-events: none;
+}
+.qmzoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.qmzoom button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font: 600 1rem/1 var(--body);
+  color: var(--m-text);
+  background: rgba(13, 19, 11, 0.8);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* the task's objects as cards: photo, number and name, grid square, link to the planner */
+.qobjs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qobj {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  scroll-margin: 20px;
+}
+.qphoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #1b2a18;
+}
+.qotext {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px 10px;
+  font-size: 0.85rem;
+}
+.qotext small,
+.qeobjs small {
+  font: 0.72rem var(--mono);
+  color: var(--muted);
+}
+.qnum {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #ffa21f;
+  color: #0d130b;
+  font: 600 0.72rem/1 var(--body);
+  vertical-align: 1px;
+}
+/* an objective's name: a link-like button that centres the map on it */
+.qolink {
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: var(--accent);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.qolink:hover {
+  text-decoration-thickness: 2px;
+}
+.flash {
+  animation: qflash 1.4s ease-out;
+}
+@keyframes qflash {
+  from {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  to {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+.qsrc {
+  margin-top: 20px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.qcredit {
+  margin-top: 12px;
+  white-space: normal;
+}
+
+/* edit mode: the bar of what is not in the repo yet */
+.qbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.qbar.on {
+  border: 1px solid var(--hl-line);
+  background: var(--hl);
+  color: var(--ink);
+}
+.qbarbtns {
+  display: inline-flex;
+  gap: 6px;
+}
+.qbar .primary {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* the picture viewer */
+.qpicdlg {
+  width: min(1200px, calc(100vw - 32px));
+}
+.qpicdlg figure {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  margin: 0;
+  padding: 8px 14px 0;
+}
+.qpicdlg img {
+  max-width: 100%;
+  max-height: calc(86vh - 130px);
+  object-fit: contain;
+}
+
+/* the task editor */
+.qeditdlg {
+  width: min(780px, calc(100vw - 32px));
+}
+.qeditdlg form {
+  min-height: 0;
+  overflow: auto;
+}
+.qrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 0.8fr;
+  gap: 10px;
+}
+.qrow span {
+  display: grid;
+  gap: 6px;
+}
+.qeditdlg .qhint {
+  margin: 0;
+}
+.qmap-edit {
+  flex: none;
+  height: 300px;
+}
+.qethumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.qethumbs:empty {
+  display: none;
+}
+.qeth {
+  position: relative;
+  width: 116px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.qeth button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 0 6px;
+  color: #fff;
+  background: rgba(13, 19, 11, 0.8);
+  border-color: transparent;
+}
+/* an objective's row: number, name, locked door, grid square, photo, order, remove */
+.qeobjs {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.qeobjs:empty {
+  display: none;
+}
+.qeobjs li {
+  display: grid;
+  grid-template-columns: auto minmax(8em, 1fr) auto 8.5em auto auto auto auto;
+  align-items: center;
+  gap: 8px;
+}
+.qeobjs .qnum {
+  margin: 0;
+}
+.qlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.qeopic,
+.qeord {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.qeothumb {
+  width: 52px;
+  height: 30px;
+  padding: 0;
+  overflow: hidden;
+}
+.qeothumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qekey {
+  min-width: 0;
+}
+.qeord button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.qerr {
+  margin: 0;
+  color: #e5484d;
+  font-weight: 600;
+}
+
+/* phones and narrow windows: the list, or the open task with a way back to it */
+@media (max-width: 900px) {
+  .qlayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .qlist {
+    position: static;
+    max-height: none;
+  }
+  .qpage.qsel .qlist,
+  .qpage:not(.qsel) .qdetail {
+    display: none;
+  }
+  .qback {
+    display: inline-block;
+  }
+  .qmap {
+    height: 300px;
+  }
+  .qrow {
+    grid-template-columns: 1fr;
+  }
+  .qeobjs li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .qeobjs li input[data-i] {
+    flex: 1 1 calc(100% - 40px);
+  }
+  .qeobjs li .qekey {
+    flex: 1 1 8em;
+  }
+}
