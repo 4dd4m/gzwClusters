@@ -1508,21 +1508,18 @@ dialog::backdrop {
   border: 1px solid var(--line);
   border-radius: 3px;
 }
-/* Delete on the left, Reset in the middle, Create new preset on the right */
+/* Delete, Copy and Reset on the left, Create new preset on the right; they wrap when the panel is narrow */
 .presets .prow {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 .presets .prow button {
   white-space: nowrap;
 }
-.presets .prow > :first-child {
-  justify-self: start;
-}
 .presets .prow > :last-child {
-  justify-self: end;
+  margin-left: auto;
 }
 .presets button:disabled,
 .dlgbtns button:disabled {

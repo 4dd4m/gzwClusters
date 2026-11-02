@@ -190,6 +190,9 @@ const I18N = {
     "preset.hint":
       "<p><b>Named copies of your route setup:</b> the route settings, the selected container types, the forbidden sectors, reverse direction, doors added as stops and the selected route.</p><p><b>While a preset is selected,</b> every change is saved into it. Picking another preset loads it and plans its routes.</p><p><b>No preset</b> keeps the current routes, but saves into no preset.</p>",
     "preset.delete": "Delete",
+    "preset.copy": "Copy preset",
+    "preset.copyName": "{name} (copy)",
+    "preset.copyOk": "Copy",
     "preset.reset": "Reset",
     "preset.resetTitle": "Reset preset",
     "preset.resetText":
@@ -685,6 +688,9 @@ const I18N = {
     "preset.hint":
       "<p><b>Az útvonal-beállításaid elnevezett másolatai:</b> az útvonal-beállítások, a kiválasztott container típusok, a tiltott szektorok, a fordított irány, a megállóként hozzáadott ajtók és a kijelölt útvonal.</p><p><b>Amíg egy profil ki van választva,</b> minden változás bele mentődik. Másik profilt választva az töltődik be, és az útvonalai újratervezésre kerülnek.</p><p>A <b>Nincs profil</b> megtartja a jelenlegi útvonalakat, de egyik profilba sem ment.</p>",
     "preset.delete": "Törlés",
+    "preset.copy": "Profil másolása",
+    "preset.copyName": "{name} (másolat)",
+    "preset.copyOk": "Másolás",
     "preset.reset": "Profil visszaállítása",
     "preset.resetTitle": "Profil visszaállítása",
     "preset.resetText":

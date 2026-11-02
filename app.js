@@ -1050,14 +1050,14 @@ function renderPresets() {
       sel.appendChild(o);
     });
   sel.value = ACTIVE || "";
-  $("presetDel").disabled = !ACTIVE;
+  $("presetDel").disabled = $("presetCopy").disabled = !ACTIVE;
 }
 /* Picking a preset loads it like a fresh start: its routes are planned and its selected route reopened.
    No preset keeps everything as it is; from then on changes go into no preset. */
 $("preset").onchange = (e) => {
   ACTIVE = e.target.value || null;
   savePresets();
-  $("presetDel").disabled = !ACTIVE;
+  $("presetDel").disabled = $("presetCopy").disabled = !ACTIVE;
   const p = ACTIVE && PRESETS.find((x) => x.name === ACTIVE);
   if (!p) return;
   applyPreset(p.data);
@@ -1070,26 +1070,39 @@ $("preset").onchange = (e) => {
   compute.ran = false;
   changed();
 };
-/* Create new preset: a name (not empty, not taken, case aside), then the current state is saved under it and selected */
+/* Create new preset: a name (not empty, not taken, case aside), then the current state is saved under it and selected.
+   Copy preset is the same with the selected preset: its name plus "(copy)" (numbered if taken) is offered. */
 {
   const dlg = $("presetDlg"),
     inp = $("presetName"),
-    err = $("presetErr");
+    err = $("presetErr"),
+    taken = (n) => PRESETS.some((p) => p.name.toLowerCase() === n.toLowerCase());
   const check = () => {
     const n = inp.value.trim(),
-      taken = !!n && PRESETS.some((p) => p.name.toLowerCase() === n.toLowerCase());
-    err.textContent = taken ? t("preset.errDup") : "";
-    err.hidden = !taken;
-    $("presetOk").disabled = !n || taken;
-    return !!n && !taken;
+      dup = !!n && taken(n);
+    err.textContent = dup ? t("preset.errDup") : "";
+    err.hidden = !dup;
+    $("presetOk").disabled = !n || dup;
+    return !!n && !dup;
   };
-  $("presetNew").onclick = () => {
+  const open = (copy) => {
+    $("presetT").textContent = t(copy ? "preset.copy" : "preset.newTitle");
+    $("presetOk").textContent = t(copy ? "preset.copyOk" : "preset.create");
     inp.value = "";
+    if (copy) {
+      const base = t("preset.copyName", { name: ACTIVE }).slice(0, inp.maxLength);
+      let n = base;
+      for (let i = 2; taken(n); i++) n = `${base.slice(0, inp.maxLength - String(i).length - 1)} ${i}`;
+      inp.value = n;
+    }
     check();
     tip.hidden = true;
     dlg.showModal();
     inp.focus();
+    inp.select();
   };
+  $("presetNew").onclick = () => open(false);
+  $("presetCopy").onclick = () => ACTIVE && open(true);
   inp.oninput = check;
   $("presetCancel").onclick = () => dlg.close();
   $("presetForm").onsubmit = (e) => {
