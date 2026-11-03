@@ -3731,7 +3731,7 @@ function draw() {
       ctx.fillText(name, x + zb + 11, y + 4);
     });
   }
-  /* Show code: a dashed line from the door to each Intel with its code, the Intel's icon, a yellow ring and its name.
+  /* Show code: a dashed line from the door to each Intel with its code, the Intel's icon and its name.
      With the Door codes switch on, every keypad door on the map gets this (names only once zoomed in under 3 km) */
   const codeLinks = [];
   if (S.doorCodes)
@@ -3757,16 +3757,6 @@ function draw() {
       ringed.add(c);
       const im = IMG[c.icon];
       if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth))) ctx.drawImage(im, x - zb / 2, y - zb / 2, zb, zb);
-      ctx.lineWidth = 4.5;
-      ctx.strokeStyle = "rgba(13,19,11,.7)";
-      ctx.beginPath();
-      ctx.arc(x, y, rad, 0, 7);
-      ctx.stroke();
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = "#ffd23f";
-      ctx.beginPath();
-      ctx.arc(x, y, rad, 0, 7);
-      ctx.stroke();
       let tw = 0;
       if (hl.names) {
         ctx.font = "700 13px Saira Condensed, Arial Narrow, sans-serif";
