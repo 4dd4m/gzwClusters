@@ -11,6 +11,7 @@ const M = DATA.marks.map((a, i) => ({
   poi: a[4],
   icon: a[5],
   id: a[6],
+  tier: a[7] || 0,
 }));
 /* ---------- custom markers ---------- */
 /* Your own points on the map (right-click a free spot → Add marker here), each with a name, an icon and a note like any
@@ -3839,12 +3840,19 @@ cv.addEventListener("mousemove", (e) => {
   }
   else {
     L.push(NOROUTE(o.t) ? short(o.label) : o.label);
-    L.push((o.door ? t("tip.keyDoor") : T[o.t].name) + (o.poi ? " · " + o.poi : ""));
+    L.push(
+      (o.door ? t("tip.keyDoor") : T[o.t].name) + (o.tier ? " · " + t("tip.tier", { n: o.tier }) : "") + (o.poi ? " · " + o.poi : ""),
+    );
     if (o.door) L.push(keyLine(o));
     if (canNote(o) && noteOf(o)) L.push(tipNote(o));
     if (o.run) {
       const k = o.run.seq.indexOf(o);
       L.push(t("tip.stop", { route: o.run.label, k: k + 1, n: o.run.n, looted: isLooted(o) }));
+      /* the route's stops by loot tier, highest first; stops without one last */
+      const tc = [0, 0, 0, 0];
+      o.run.seq.forEach((s) => tc[s.tier || 0]++);
+      const tl = [3, 2, 1, 0].filter((n) => tc[n]).map((n) => `${n ? "T" + n : t("tip.tierNone")} ×${tc[n]}`);
+      if (tc[1] + tc[2] + tc[3]) L.push(t("tip.tiers", { list: tl.join(" · ") }));
       const bo = S.bail && o.run === SEL && bailOuts(SEL).find((b) => b.i === k);
       if (bo) L.push(t("bail.tip", { name: nm(bo.ex), d: fm(bo.d), h: heading(o, bo.ex), back: fm(bo.bd), k: k + 2 }));
       L.push(t("tip.prev", { d: fm(o.run.legs[k]), from: k ? t("tip.prevStop", { k }) : nm(o.run.A.lz) }));
