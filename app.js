@@ -1324,7 +1324,38 @@ let SHOWPOI = [],
   LOOTPTS = [],
   NFPTS = [];
 const ALLPOI = M.filter((m) => T[m.t].group === "Points of interest");
-const NOROUTE = (t) => T[t]?.name === "COP";
+/* shown on the map when ticked, never a route stop: COPs (outposts, not loot), Intel and code-locked doors */
+const NOROUTE_T = new Set(["COP", "Intel", "Code-locked Doors"]),
+  NOROUTE = (t) => NOROUTE_T.has(T[t]?.name),
+  ISCOP = (t) => T[t]?.name === "COP";
+/* ---------- codes ---------- */
+/* DATA.codes: per code-locked door (marker id) the Intel that gives its code and gzwtacmap's other unlock requirements (a
+   Generator, a Hacking Tool...); CODEFOR: the other way round, the doors an Intel opens. Show code (a click on the door or its
+   menu) brings the door and its Intel into view and rings the Intel (drawn even if Intel is not ticked) until Esc or a
+   click on an empty spot */
+const M_BY_ID = new Map(M.filter((m) => m.id != null).map((m) => [m.id, m])),
+  codeOf = (m) => (m && m.id != null && !m.custom && DATA.codes?.[m.id]) || null,
+  codeIntel = (m) => (codeOf(m)?.[0] || []).map((id) => M_BY_ID.get(id)).filter(Boolean),
+  CODEFOR = new Map();
+for (const [door, [intel]] of Object.entries(DATA.codes || {}))
+  for (const id of intel) (CODEFOR.get(id) || CODEFOR.set(id, []).get(id)).push(M_BY_ID.get(+door));
+let CODEHL = null;
+function showCode(m) {
+  const to = codeIntel(m);
+  if (!to.length) return;
+  CODEHL = { from: m, to };
+  tip.hidden = true;
+  const pts = [m, ...to],
+    lngs = pts.map((p) => p.lng),
+    lats = pts.map((p) => p.lat);
+  fit(Math.min(...lngs), Math.max(...lats), Math.max(...lngs), Math.min(...lats), true);
+}
+function clearCode() {
+  if (!CODEHL) return false;
+  CODEHL = null;
+  schedule();
+  return true;
+}
 let RUNS = [],
   SEL = null,
   HOV = null,
@@ -1900,6 +1931,7 @@ function openCtx(m, x, y, from, at) {
   $("ctxRoute").textContent = t(m?.type ? "ctx.routeEdit" : "ctx.route");
   $("ctxNf").hidden = !(m && canNF(m) && m.run);
   $("ctxNote").hidden = !canNote(m);
+  $("ctxCode").hidden = !codeIntel(m).length;
   if (m) {
     $("ctxNf").textContent = t(isNF(m) ? "ctx.nfOff" : "ctx.nfOn");
     $("ctxNote").textContent = t(noteOf(m) ? "ctx.noteEdit" : "ctx.noteAdd");
@@ -1957,6 +1989,12 @@ function closeCtx(refocus) {
     const m = CTX.m;
     closeCtx(true);
     setNF(m, !isNF(m));
+  };
+  $("ctxCode").onclick = () => {
+    if (!CTX) return;
+    const m = CTX.m;
+    closeCtx(true);
+    showCode(m);
   };
   $("ctxNote").onclick = () => {
     if (!CTX) return;
@@ -3392,7 +3430,7 @@ function draw() {
                 : F && !inSel
                   ? ST.opOther
                   : 100) / 100;
-    const im = NOROUTE(p.t) ? IMG[p.icon] && tinted(IMG[p.icon], COPC) : IMG[p.icon];
+    const im = ISCOP(p.t) ? IMG[p.icon] && tinted(IMG[p.icon], COPC) : IMG[p.icon];
     if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth)))
       ctx.drawImage(im, x - z / 2, y - z / 2, z, z);
     else {
@@ -3494,14 +3532,14 @@ function draw() {
     }
   }
   if (SHOWPOI.length) {
-    /* ticked COPs always carry their names, styled like POI names */
+    /* ticked COPs always carry their names, styled like POI names (Intel and code-locked doors only on hover) */
     ctx.font = "500 11px IBM Plex Sans, system-ui, sans-serif";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     SHOWPOI.forEach((p) => {
-      if (copNamed.has(mkey(p))) return;
+      if (copNamed.has(mkey(p)) || !ISCOP(p.t)) return;
       const [x, y] = toS(p);
       if (x < -80 || y < -30 || x > W + 80 || y > H + 20) return;
       const ty = y + zb / 2 + 3;
@@ -3672,6 +3710,40 @@ function draw() {
       ctx.fillText(name, x + zb + 11, y + 4);
     });
   }
+  /* Show code: a dashed line from the door to each Intel with its code, the Intel's icon, a yellow ring and its name */
+  if (CODEHL) {
+    const [fx, fy] = toS(CODEHL.from),
+      rad = Math.max(14, zb * 0.9 + 4);
+    CODEHL.to.forEach((c) => {
+      const [x, y] = toS(c);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffd23f";
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const im = IMG[c.icon];
+      if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth))) ctx.drawImage(im, x - zb / 2, y - zb / 2, zb, zb);
+      ctx.lineWidth = 4.5;
+      ctx.strokeStyle = "rgba(13,19,11,.7)";
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, 7);
+      ctx.stroke();
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "#ffd23f";
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, 7);
+      ctx.stroke();
+      ctx.font = "700 13px Saira Condensed, Arial Narrow, sans-serif";
+      const tw = ctx.measureText(c.label).width;
+      ctx.fillStyle = "rgba(13,19,11,.85)";
+      ctx.fillRect(x + rad + 4, y - 9, tw + 10, 17);
+      ctx.fillStyle = "#ffd23f";
+      ctx.fillText(c.label, x + rad + 9, y + 4);
+    });
+  }
   /* the lock under the mouse in the route panel's door list */
   if (HOVDOOR) {
     const [x, y] = toS(HOVDOOR),
@@ -3839,12 +3911,21 @@ cv.addEventListener("mousemove", (e) => {
     L.push(t("ctx.tipNote"));
   }
   else {
-    L.push(NOROUTE(o.t) ? short(o.label) : o.label);
+    L.push(ISCOP(o.t) ? short(o.label) : o.label);
     L.push(
       (o.door ? t("tip.keyDoor") : T[o.t].name) + (o.tier ? " · " + t("tip.tier", { n: o.tier }) : "") + (o.poi ? " · " + o.poi : ""),
     );
     if (o.door) L.push(keyLine(o));
     if (canNote(o) && noteOf(o)) L.push(tipNote(o));
+    /* a code-locked door: where its code is and what else it needs; an Intel: the doors its code opens */
+    const code = codeOf(o);
+    if (code) {
+      codeIntel(o).forEach((c) =>
+        L.push(t("tip.code", { name: c.label, poi: c.poi, d: fm(Math.hypot(c.lat - o.lat, c.lng - o.lng)) })),
+      );
+      if (code[1].length) L.push(t("tip.codeAlso", { list: code[1].join(", ") }));
+    } else if (T[o.t].name === "Code-locked Doors") L.push(t("tip.codeNone"));
+    (CODEFOR.get(o.id) || []).forEach((d) => d && L.push(t("tip.codeFor", { name: d.label, poi: d.poi })));
     if (o.run) {
       const k = o.run.seq.indexOf(o);
       L.push(t("tip.stop", { route: o.run.label, k: k + 1, n: o.run.n, looted: isLooted(o) }));
@@ -3856,7 +3937,8 @@ cv.addEventListener("mousemove", (e) => {
       const bo = S.bail && o.run === SEL && bailOuts(SEL).find((b) => b.i === k);
       if (bo) L.push(t("bail.tip", { name: nm(bo.ex), d: fm(bo.d), h: heading(o, bo.ex), back: fm(bo.bd), k: k + 2 }));
       L.push(t("tip.prev", { d: fm(o.run.legs[k]), from: k ? t("tip.prevStop", { k }) : nm(o.run.A.lz) }));
-    } else if (NOROUTE(o.t))
+    } else if (NOROUTE(o.t) && !ISCOP(o.t)) L.push(t("tip.shownOnly"));
+    else if (NOROUTE(o.t))
       L.push(
         !S.browse && (copStartOn() || S.useCopE)
           ? copStartOn() && o.label === S.copStart
@@ -3876,6 +3958,7 @@ cv.addEventListener("mousemove", (e) => {
       else if (S.planExcl.has(mkey(o))) L.push(t("tip.lapsed"));
       L.push(t(left > 0 ? "tip.unmark" : "tip.mark", { min: LOOT_MIN }));
     }
+    if (codeIntel(o).length) L.push(t("tip.codeShow"));
     if (o.custom) L.push(t("cm.tip"));
     else if (o.run && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipNote"));
   }
@@ -3937,7 +4020,9 @@ cv.addEventListener("click", (e) => {
     return;
   }
   const { best } = hit(e);
-  if (best && best.kind === "door") toggleDoor(best.o.id, true);
+  if (!best && clearCode()) return;
+  if (best && best.kind === "container" && codeIntel(best.o).length) showCode(best.o);
+  else if (best && best.kind === "door") toggleDoor(best.o.id, true);
   else if (best && best.kind === "container" && best.o.run) {
     /* a route stop: open its route if it is not the open one, then put the step marker (white dashed ring) and the
        highlighted row of the stop list on that stop */
@@ -4008,7 +4093,11 @@ cv.addEventListener("contextmenu", (e) => {
   if (MEAS_ON) return;
   const { best, x, y } = hit(e),
     o = best && best.o;
-  if (best && ((best.kind === "container" && (o.run || o.custom)) || best.kind === "poi" || best.kind === "custom") && canNote(o))
+  if (
+    best &&
+    ((((best.kind === "container" && (o.run || o.custom)) || best.kind === "poi" || best.kind === "custom") && canNote(o)) ||
+      (best.kind === "container" && codeIntel(o).length))
+  )
     openCtx(o, e.clientX, e.clientY, cv);
   else openCtx(null, e.clientX, e.clientY, cv, { lat: V.y - y / sc(), lng: V.x + x / sc() });
 });
@@ -4152,7 +4241,7 @@ addEventListener("keydown", (e) => {
   if (PICKME && e.key === "Escape") {
     setPickMe(false);
     e.preventDefault();
-  }
+  } else if (e.key === "Escape" && !document.querySelector("dialog[open]") && ctxEl.hidden && clearCode()) e.preventDefault();
 });
 cv.addEventListener("keydown", (e) => {
   if (MEAS_ON) {
