@@ -2,6 +2,8 @@ const $ = (id) => document.getElementById(id);
 const T = DATA.types,
   LZ = DATA.lz.map((a) => ({ lat: a[0], lng: a[1], name: a[2], poi: a[3], kind: "lz" })),
   OB = DATA.ob.map((a) => ({ lat: a[0], lng: a[1] }));
+/* gzwtacmap gives some points of interest the red padlock (Campsite, Woodshed...) where the rest of their type have
+   a proper icon: those take their type's icon */
 const M = DATA.marks.map((a, i) => ({
   i,
   t: a[0],
@@ -9,7 +11,7 @@ const M = DATA.marks.map((a, i) => ({
   lng: a[2],
   label: a[3],
   poi: a[4],
-  icon: a[5],
+  icon: a[5] === "_locked" && T[a[0]].group === "Points of interest" ? T[a[0]].icon : a[5],
   id: a[6],
   tier: a[7] || 0,
 }));
