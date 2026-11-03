@@ -2721,12 +2721,21 @@ function detail() {
     }
     tb.appendChild(tr);
   };
+  /* Leg heading on: the compass heading to walk goes under the leg's length, as on the map */
+  const hdg = (a, b) => {
+    if (!S.legHead) return;
+    const sm = document.createElement("small");
+    sm.className = "hdg";
+    sm.textContent = heading(a, b);
+    tb.lastElementChild.children[2].appendChild(sm);
+  };
   const BO = S.bail && !S.browse ? new Map(bailOuts(r).map((b) => [b.i, b])) : new Map();
   row("S", nm(r.A.lz), r.A.lz, null, 0, "lzrow");
   let sum = 0;
   r.seq.forEach((p, i) => {
     sum += r.legs[i];
     row(i + 1, p.label, p, r.legs[i], sum, null, p);
+    hdg(i ? r.seq[i - 1] : r.A.lz, p);
     const b = BO.get(i);
     if (b) {
       const sm = document.createElement("small");
@@ -2737,6 +2746,7 @@ function detail() {
     }
   });
   row("E", nm(r.B.lz), r.B.lz, r.B.d, sum + r.B.d, "lzrow");
+  if (r.seq.length) hdg(r.seq[r.seq.length - 1], r.B.lz);
   [...tb.children].forEach((tr, i) => (tr.onclick = () => go(i)));
   updNav();
 }
@@ -2794,6 +2804,8 @@ $("doorCodes").onchange = (e) => {
     ($(id).onchange = (e) => {
       S[id] = e.target.checked;
       save();
+      /* the stop list shows leg headings too */
+      if (id === "legHead") detail();
       schedule();
     }),
 );

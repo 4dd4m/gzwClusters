@@ -1769,6 +1769,12 @@ td small.bail {
 canvas.picking {
   cursor: crosshair !important;
 }
+/* Leg heading: the compass heading under a leg's length in the stop list */
+td small.hdg {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
 /* a stop's note under its name in the stop list */
 td small.note {
   display: block;
