@@ -349,6 +349,10 @@ const KEY = "lamang-runs-v2",
     /* Early exfil: green arrows from the selected route's best bail-out stops to the nearest LZ or COP */
     bail: false,
     browse: false,
+    /* browse only has its own types, kept apart from the presets (type indices; null until first used: every container
+       type); the selection from before it is kept in preBrowse for when it goes off */
+    browseSel: null,
+    preBrowse: null,
     /* Segédlet: the route settings' explanations show on hover */
     hints: true,
     noSec: new Set(),
@@ -392,6 +396,10 @@ try {
     if (typeof s.zoneB === "boolean") S.zoneB = s.zoneB;
     if (typeof s.bail === "boolean") S.bail = s.bail;
     S.browse = !!s.browse;
+    const typeSet = (a) =>
+      new Set(a.map((id) => TID.get(id)).filter((i) => i !== undefined && !OFFLIST.has(T[i].group)));
+    if (Array.isArray(s.browseSel)) S.browseSel = typeSet(s.browseSel);
+    if (S.browse && Array.isArray(s.preBrowse)) S.preBrowse = typeSet(s.preBrowse);
     if (typeof s.hints === "boolean") S.hints = s.hints;
     if (Array.isArray(s.noSec)) S.noSec = new Set(s.noSec.filter((x) => typeof x === "string"));
     if (Array.isArray(s.doorStops)) S.doorStops = new Set(s.doorStops.filter((x) => Number.isInteger(x)));
@@ -415,6 +423,8 @@ if (!COPS.some((c) => c.name === S.copStart)) S.copStart = $("copStart").options
 let FROZEN = false;
 const save = () => {
   if (FROZEN) return;
+  /* types ticked in browse only are its own, for the next time it is on */
+  if (S.browse) S.browseSel = new Set(S.sel);
   try {
     localStorage.setItem(
       KEY,
@@ -439,6 +449,8 @@ const save = () => {
         zoneB: S.zoneB,
         bail: S.bail,
         browse: S.browse,
+        browseSel: S.browseSel && [...S.browseSel].map((i) => T[i].id),
+        preBrowse: S.preBrowse && [...S.preBrowse].map((i) => T[i].id),
         hints: S.hints,
         noSec: [...S.noSec],
         doorStops: [...S.doorStops],
@@ -477,8 +489,9 @@ const savePresets = () => {
     localStorage.setItem(PRESETKEY, JSON.stringify({ list: PRESETS, active: ACTIVE }));
   } catch {}
 };
+/* in browse only the preset keeps its own types, not the ones browse only shows */
 const presetData = () => ({
-  types: [...S.sel].map((i) => T[i].id),
+  types: [...(S.browse && S.preBrowse ? S.preBrowse : S.sel)].map((i) => T[i].id),
   r: S.r,
   useQ: S.useQ,
   q: S.q,
@@ -512,6 +525,16 @@ function applyPreset(d) {
   S.inv = !!d.inv;
   S.doorStops = new Set((Array.isArray(d.doorStops) ? d.doorStops : []).filter((x) => Number.isInteger(x)));
   S.run = Array.isArray(d.run) ? d.run.filter((k) => typeof k === "string").slice(0, 1000) : null;
+}
+/* browse only: the selection is put aside for when it goes off, and browse only's own types show instead; the first
+   time, every listed container type (the map's and your own) is ticked on top of the selection */
+function enterBrowse() {
+  S.preBrowse = new Set(S.sel);
+  if (S.browseSel) S.sel = new Set(S.browseSel);
+  else
+    T.forEach((x, i) => {
+      if ((x.group === "Containers" || x.group === "Custom") && !(x.custom && !x.n)) S.sel.add(i);
+    });
 }
 /* the selected route is stored as its containers' positions, so it is found again after a reload even if routes are renumbered */
 const mkey = (p) => Math.round(p.lat) + "," + Math.round(p.lng);
@@ -1067,6 +1090,7 @@ $("preset").onchange = (e) => {
   const p = ACTIVE && PRESETS.find((x) => x.name === ACTIVE);
   if (!p) return;
   applyPreset(p.data);
+  if (S.browse) enterBrowse();
   SEL = null;
   HOV = null;
   STEP = 0;
@@ -1159,6 +1183,7 @@ $("preset").onchange = (e) => {
   $("presetResetYes").onclick = () => {
     dlg.close();
     applyPreset({});
+    if (S.browse) enterBrowse();
     S.copStart = $("copStart").options[0]?.value || "";
     SEL = null;
     HOV = null;
@@ -2788,8 +2813,10 @@ $("inv").onchange = (e) => {
   detail();
   schedule();
 };
-/* browse only: on, the selection clears and the routes panel slides out at once (nothing to plan);
-   off, the app starts over like a fresh load: routes are planned, then the panel slides back in and the whole map fits */
+/* browse only: on, its own types show (every container type the first time, then the ones last ticked in it), the
+   selection clears and the routes panel slides out at once (nothing to plan); off, the container types are read again from the selected preset (with No preset, the ones from before
+   browse only), and the app starts over like a fresh load: routes are planned, then the panel slides back in and the
+   whole map fits */
 let animT = 0;
 function applyBrowse() {
   const b = document.body;
@@ -2807,11 +2834,18 @@ $("browse").onchange = (e) => {
   S.run = null;
   tip.hidden = true;
   if (S.browse) {
+    enterBrowse();
     save();
     syncBoxes();
     clearTimeout(timer);
     compute();
   } else {
+    const p = ACTIVE && PRESETS.find((x) => x.name === ACTIVE);
+    if (p) {
+      applyPreset(p.data);
+      syncInputs();
+    } else if (S.preBrowse) S.sel = new Set(S.preBrowse);
+    S.preBrowse = null;
     compute.ran = false;
     changed();
   }

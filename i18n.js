@@ -144,7 +144,7 @@ const I18N = {
     "set.title": "Route settings",
     "browse.label": "Browse only",
     "browse.hint":
-      "<p><b>Shows only the selected containers on the map, without routes.</b> Useful when you just want to see where the containers are.</p><p><b>On:</b> the selected route is cleared, routes are hidden, the routes panel on the right slides out and the map takes its place. Every selected container shows the same, including the ones the Min. quantity would leave out.</p><p><b>Off:</b> the planner starts over: it recalculates the routes with the current settings and shows the whole map.</p>",
+      "<p><b>Shows the containers on the map, without routes.</b> Useful when you just want to see where the containers are.</p><p><b>On:</b> Browse only's own container types are ticked: every type the first time, then the ones you last ticked while browsing (kept apart from the presets). The selected route is cleared, routes are hidden, the routes panel on the right slides out and the map takes its place. Every selected container shows the same, including the ones the Min. quantity would leave out.</p><p><b>Off:</b> the container types are read again from the selected preset (with No preset, the ones ticked before Browse only), then the planner starts over: it recalculates the routes with the current settings and shows the whole map.</p>",
     "me.label": "Start from my position",
     "me.set": "Set on map",
     "me.move": "Move",
@@ -655,7 +655,7 @@ const I18N = {
     "set.title": "Útvonal-beállítások",
     "browse.label": "Csak böngészés",
     "browse.hint":
-      "<p><b>Csak a kiválasztott containereket mutatja a térképen, útvonalak nélkül.</b> Akkor hasznos, ha csak azt nézed, hol vannak az egyes containerek.</p><p><b>Bekapcsolva:</b> a kijelölt útvonal törlődik, az útvonalak nem látszanak, a jobb oldali útvonal-panel kiúszik jobbra, és a térkép kitölti a helyét. Minden kiválasztott container egyformán látszik, azok is, amelyek a Min. mennyiség miatt kimaradnának.</p><p><b>Kikapcsolva:</b> a tervező elölről kezdi: a jelenlegi beállításokkal újraszámolja az útvonalakat, és a teljes térképet mutatja.</p>",
+      "<p><b>A containereket mutatja a térképen, útvonalak nélkül.</b> Akkor hasznos, ha csak azt nézed, hol vannak az egyes containerek.</p><p><b>Bekapcsolva:</b> a Csak böngészés saját container-típusai kapcsolnak be: először mind, utána azok, amelyeket böngészés közben legutóbb kiválasztottál (a profiloktól külön megjegyezve). A kijelölt útvonal törlődik, az útvonalak nem látszanak, a jobb oldali útvonal-panel kiúszik jobbra, és a térkép kitölti a helyét. Minden kiválasztott container egyformán látszik, azok is, amelyek a Min. mennyiség miatt kimaradnának.</p><p><b>Kikapcsolva:</b> a container-típusok újra a kiválasztott profilból töltődnek be (profil nélkül a Csak böngészés előttiek), majd a tervező elölről kezdi: a jelenlegi beállításokkal újraszámolja az útvonalakat, és a teljes térképet mutatja.</p>",
     "me.label": "Indulás a pozíciómból",
     "me.set": "Kijelölés",
     "me.move": "Áthelyezés",
