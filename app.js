@@ -2535,6 +2535,8 @@ function detail() {
   document.querySelector(".right").classList.toggle("nosel", !SEL);
   det.textContent = "";
   tb.textContent = "";
+  /* Leg heading on: a heading column after the leg's length, the compass heading to walk from the point before (as on the map) */
+  $("thHdg").hidden = !S.legHead;
   if (!r) {
     $("dT").textContent = t("det.route");
     det.innerHTML = `<p class="empty" style="grid-column:1/-1;padding:0"></p>`;
@@ -2654,10 +2656,15 @@ function detail() {
     });
     det.appendChild(box);
   }
-  const row = (n, name, p, leg, tot, cls, stop) => {
+  const row = (n, name, p, leg, cls, stop, from) => {
     const tr = document.createElement("tr");
     if (cls) tr.className = cls;
-    [n, name, leg == null ? "–" : fm(leg), tot == null ? "–" : fm(tot)].forEach((v) => {
+    [
+      n,
+      name,
+      leg == null ? "–" : fm(leg),
+      ...(S.legHead ? [from ? heading(from, p) : "–"] : []),
+    ].forEach((v) => {
       const td = document.createElement("td");
       td.textContent = v;
       tr.appendChild(td);
@@ -2721,21 +2728,10 @@ function detail() {
     }
     tb.appendChild(tr);
   };
-  /* Leg heading on: the compass heading to walk goes under the leg's length, as on the map */
-  const hdg = (a, b) => {
-    if (!S.legHead) return;
-    const sm = document.createElement("small");
-    sm.className = "hdg";
-    sm.textContent = heading(a, b);
-    tb.lastElementChild.children[2].appendChild(sm);
-  };
   const BO = S.bail && !S.browse ? new Map(bailOuts(r).map((b) => [b.i, b])) : new Map();
-  row("S", nm(r.A.lz), r.A.lz, null, 0, "lzrow");
-  let sum = 0;
+  row("S", nm(r.A.lz), r.A.lz, null, "lzrow");
   r.seq.forEach((p, i) => {
-    sum += r.legs[i];
-    row(i + 1, p.label, p, r.legs[i], sum, null, p);
-    hdg(i ? r.seq[i - 1] : r.A.lz, p);
+    row(i + 1, p.label, p, r.legs[i], null, p, i ? r.seq[i - 1] : r.A.lz);
     const b = BO.get(i);
     if (b) {
       const sm = document.createElement("small");
@@ -2745,8 +2741,7 @@ function detail() {
       tb.lastElementChild.children[1].appendChild(sm);
     }
   });
-  row("E", nm(r.B.lz), r.B.lz, r.B.d, sum + r.B.d, "lzrow");
-  if (r.seq.length) hdg(r.seq[r.seq.length - 1], r.B.lz);
+  row("E", nm(r.B.lz), r.B.lz, r.B.d, "lzrow", null, r.seq[r.seq.length - 1]);
   [...tb.children].forEach((tr, i) => (tr.onclick = () => go(i)));
   updNav();
 }
