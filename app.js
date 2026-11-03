@@ -1345,10 +1345,21 @@ function showCode(m) {
   if (!to.length) return;
   CODEHL = { from: m, to };
   tip.hidden = true;
+  /* keep the zoom: no move when the door and its Intel are already on screen, a pan when they fit at this zoom,
+     and only zoom out as far as needed to get both in */
   const pts = [m, ...to],
     lngs = pts.map((p) => p.lng),
-    lats = pts.map((p) => p.lat);
-  fit(Math.min(...lngs), Math.max(...lats), Math.max(...lngs), Math.min(...lats), true);
+    lats = pts.map((p) => p.lat),
+    x0 = Math.min(...lngs),
+    x1 = Math.max(...lngs),
+    y0 = Math.min(...lats),
+    y1 = Math.max(...lats),
+    vh = (V.w * H) / W,
+    pad = V.w * 0.08;
+  if (x0 >= V.x + pad && x1 <= V.x + V.w - pad && y1 <= V.y - pad && y0 >= V.y - vh + pad) return schedule();
+  const w = Math.max(V.w, (x1 - x0) * 1.25, ((y1 - y0) * 1.25 * W) / H),
+    h = (w * H) / W;
+  tween(clampV({ x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 + h / 2, w }), true);
 }
 function clearCode() {
   if (!CODEHL) return false;
