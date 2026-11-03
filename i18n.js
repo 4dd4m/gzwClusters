@@ -321,6 +321,9 @@ const I18N = {
     "bail.tip": "Early exfil: {name}, {d} m ({h}) · infil back: {back} m to stop {k}",
     "sw.poi": "POI names",
     "sw.cm": "Custom POIs",
+    "sw.codes": "Door codes",
+    "sw.codesTitle":
+      "Every code-locked door shown on the map (tick Code-locked Doors in Container types) also shows where its code is: a dashed yellow line to the Intel with the code. Off: only the doors, click one to see its code.",
     "sw.cmTitle":
       "Your own points of interest. Right-click a free spot on the map (not a route stop or a POI name) → Add custom POI here: give it a name and an icon. Right-click one to edit or delete it, attach a note, or make it a routable point: with a container type it is planned like the map's containers, and a new type of yours shows up in Container types. Custom POIs go into exports.",
     "sw.poiTitle":
@@ -830,6 +833,9 @@ const I18N = {
     "bail.tip": "Korai exfil: {name}, {d} m ({h}) · infil vissza: {back} m ({k}. megálló)",
     "sw.poi": "POI nevek",
     "sw.cm": "Saját POI-k",
+    "sw.codes": "Ajtókódok",
+    "sw.codesTitle":
+      "A térképen látható minden kódzáras ajtónál (pipáld be a Code-locked Doors-t a Container típusoknál) az is látszik, hol a kódja: szaggatott sárga vonal a kódot adó Intelhez. Kikapcsolva csak az ajtók látszanak, kattints egyre a kódjáért.",
     "sw.cmTitle":
       "Saját érdekes pontjaid. Jobb klikk a térkép egy szabad pontjára (nem megállóra és nem POI-névre) → Saját POI hozzáadása ide: adj neki nevet és ikont. Jobb klikkel szerkesztheted vagy törölheted, jegyzetet adhatsz hozzá, vagy útvonalponttá teheted: container típussal úgy tervez vele a program, mint a térkép containereivel, és egy új saját típus megjelenik a Container típusok között. A saját POI-k bekerülnek az exportba.",
     "sw.poiTitle":

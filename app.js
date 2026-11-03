@@ -333,6 +333,8 @@ const KEY = "lamang-runs-v2",
     poiNames: false,
     /* custom markers shown on the map (Custom markers switch) */
     cmShow: true,
+    /* Door codes switch: every keypad door on the map also shows the Intel with its code */
+    doorCodes: false,
     /* Start from my position: {lat, lng} set on the map, or null; while set it replaces the LZs and the starting COP */
     me: null,
     useCopS: false,
@@ -376,6 +378,7 @@ try {
     S.inv = !!s.inv;
     S.poiNames = !!s.poiNames;
     if (typeof s.cmShow === "boolean") S.cmShow = s.cmShow;
+    S.doorCodes = !!s.doorCodes;
     if (s.me && Number.isFinite(s.me.lat) && Number.isFinite(s.me.lng)) S.me = { lat: +s.me.lat, lng: +s.me.lng };
     if (typeof s.copStart === "string") S.copStart = s.copStart;
     if ("useCopS" in s || "useCopE" in s) {
@@ -424,6 +427,7 @@ const save = () => {
         inv: S.inv,
         poiNames: S.poiNames,
         cmShow: S.cmShow,
+        doorCodes: S.doorCodes,
         me: S.me,
         useCopS: S.useCopS,
         copStart: S.copStart,
@@ -519,6 +523,7 @@ const syncInputs = () => {
   $("inv").checked = S.inv;
   $("poiNames").checked = S.poiNames;
   $("cmShow").checked = S.cmShow;
+  $("doorCodes").checked = S.doorCodes;
   /* Start from my position: Set on map, Cancel while picking, Move once set (✕ clears); the starting COP steps aside */
   $("meSet").textContent = t(PICKME ? "me.cancel" : S.me ? "me.move" : "me.set");
   $("meSet").setAttribute("aria-pressed", String(PICKME));
@@ -2752,6 +2757,11 @@ $("cmShow").onchange = (e) => {
   save();
   schedule();
 };
+$("doorCodes").onchange = (e) => {
+  S.doorCodes = e.target.checked;
+  save();
+  schedule();
+};
 ["legNum", "legLen", "legHead", "zoneB"].forEach(
   (id) =>
     ($(id).onchange = (e) => {
@@ -3721,11 +3731,19 @@ function draw() {
       ctx.fillText(name, x + zb + 11, y + 4);
     });
   }
-  /* Show code: a dashed line from the door to each Intel with its code, the Intel's icon, a yellow ring and its name */
-  if (CODEHL) {
-    const [fx, fy] = toS(CODEHL.from),
+  /* Show code: a dashed line from the door to each Intel with its code, the Intel's icon, a yellow ring and its name.
+     With the Door codes switch on, every keypad door on the map gets this (names only once zoomed in under 3 km) */
+  const codeLinks = [];
+  if (S.doorCodes)
+    drawn
+      .filter((d) => d.kind === "container" && d.o !== CODEHL?.from && codeIntel(d.o).length)
+      .forEach((d) => codeLinks.push({ from: d.o, to: codeIntel(d.o), names: V.w <= 3000 }));
+  if (CODEHL) codeLinks.push({ ...CODEHL, names: true });
+  const ringed = new Set();
+  codeLinks.forEach((hl) => {
+    const [fx, fy] = toS(hl.from),
       rad = Math.max(14, zb * 0.9 + 4);
-    CODEHL.to.forEach((c) => {
+    hl.to.forEach((c) => {
       const [x, y] = toS(c);
       ctx.lineWidth = 2;
       ctx.strokeStyle = "#ffd23f";
@@ -3735,6 +3753,8 @@ function draw() {
       ctx.lineTo(x, y);
       ctx.stroke();
       ctx.setLineDash([]);
+      if (ringed.has(c)) return;
+      ringed.add(c);
       const im = IMG[c.icon];
       if (im && (im.tagName === "CANVAS" || (im.complete && im.naturalWidth))) ctx.drawImage(im, x - zb / 2, y - zb / 2, zb, zb);
       ctx.lineWidth = 4.5;
@@ -3747,14 +3767,19 @@ function draw() {
       ctx.beginPath();
       ctx.arc(x, y, rad, 0, 7);
       ctx.stroke();
-      ctx.font = "700 13px Saira Condensed, Arial Narrow, sans-serif";
-      const tw = ctx.measureText(c.label).width;
-      ctx.fillStyle = "rgba(13,19,11,.85)";
-      ctx.fillRect(x + rad + 4, y - 9, tw + 10, 17);
-      ctx.fillStyle = "#ffd23f";
-      ctx.fillText(c.label, x + rad + 9, y + 4);
+      let tw = 0;
+      if (hl.names) {
+        ctx.font = "700 13px Saira Condensed, Arial Narrow, sans-serif";
+        tw = ctx.measureText(c.label).width + 10;
+        ctx.fillStyle = "rgba(13,19,11,.85)";
+        ctx.fillRect(x + rad + 4, y - 9, tw, 17);
+        ctx.fillStyle = "#ffd23f";
+        ctx.fillText(c.label, x + rad + 9, y + 4);
+      }
+      /* hoverable like any marker (tooltip and photo), the ring and the name label both count, even with Intel not ticked */
+      drawn.push({ x, y, r: rad, box: [x - rad, y - rad, x + rad + tw + 4, y + rad], kind: "container", o: c });
     });
-  }
+  });
   /* the lock under the mouse in the route panel's door list */
   if (HOVDOOR) {
     const [x, y] = toS(HOVDOOR),
