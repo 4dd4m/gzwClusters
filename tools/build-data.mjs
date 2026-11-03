@@ -179,7 +179,11 @@ const ids = [...new Set(marks.map((m) => m[6]).filter((id) => id != null))];
 const knownIds = new Set((old.DATA?.marks || []).map((m) => m[6]).filter((id) => id != null));
 const photos = {};
 for (const id of ids) if (old.DATA?.photos?.[id] && !ALL_PHOTOS) photos[id] = old.DATA.photos[id];
-const look = ALL_PHOTOS ? ids : ids.filter((id) => !knownIds.has(id));
+/* Intel and code-locked doors came in before their photos were looked up, so any of theirs still missing are looked up too */
+const recheck = new Set(
+  marks.filter((m) => ["Intel", "Code-locked Doors"].includes(types[m[0]].name) && m[6] != null).map((m) => m[6]),
+);
+const look = ALL_PHOTOS ? ids : ids.filter((id) => !knownIds.has(id) || (recheck.has(id) && !photos[id]));
 log(`photos: kept ${Object.keys(photos).length}, looking up ${look.length} marker page(s)…`);
 let photoErrors = 0;
 await pool(look, 6, async (id) => {
