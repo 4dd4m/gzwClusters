@@ -355,10 +355,15 @@ div.ty {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* the selected types as chips: many of them (browse only ticks every container type) scroll in a few rows, so the type
+   list under them keeps its room */
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  max-height: 7.5em;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .chips button {
   display: inline-flex;

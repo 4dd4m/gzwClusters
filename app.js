@@ -355,6 +355,8 @@ const KEY = "lamang-runs-v2",
        type); the selection from before it is kept in preBrowse for when it goes off */
     browseSel: null,
     preBrowse: null,
+    /* browse only's last view, {x, y: its centre on the map (m), w: its width (m)}: the page opens there in browse only */
+    browseView: null,
     /* Segédlet: the route settings' explanations show on hover */
     hints: true,
     noSec: new Set(),
@@ -402,6 +404,8 @@ try {
       new Set(a.map((id) => TID.get(id)).filter((i) => i !== undefined && !OFFLIST.has(T[i].group)));
     if (Array.isArray(s.browseSel)) S.browseSel = typeSet(s.browseSel);
     if (S.browse && Array.isArray(s.preBrowse)) S.preBrowse = typeSet(s.preBrowse);
+    const bv = s.browseView;
+    if (bv && [bv.x, bv.y, bv.w].every(Number.isFinite) && bv.w > 0) S.browseView = { x: +bv.x, y: +bv.y, w: +bv.w };
     if (typeof s.hints === "boolean") S.hints = s.hints;
     if (Array.isArray(s.noSec)) S.noSec = new Set(s.noSec.filter((x) => typeof x === "string"));
     if (Array.isArray(s.doorStops)) S.doorStops = new Set(s.doorStops.filter((x) => Number.isInteger(x)));
@@ -453,6 +457,7 @@ const save = () => {
         browse: S.browse,
         browseSel: S.browseSel && [...S.browseSel].map((i) => T[i].id),
         preBrowse: S.preBrowse && [...S.preBrowse].map((i) => T[i].id),
+        browseView: S.browseView,
         hints: S.hints,
         noSec: [...S.noSec],
         doorStops: [...S.doorStops],
@@ -1680,7 +1685,7 @@ function finish(res, ctx) {
       save();
     }
     detail();
-    first ? fitFull(false) : schedule();
+    first ? fitStart() : schedule();
   }
   applyBrowse();
   /* the page's first plan shows a restored route's panel at once; only later openings and closings slide (app.css) */
@@ -3026,6 +3031,27 @@ function fit(x0, y0, x1, y1, anim) {
 function fitFull(anim) {
   tween(clampV({ x: PB.x0, y: PB.y1, w: Math.max(PB.x1 - PB.x0, ((PB.y1 - PB.y0) * W) / H) }), anim);
 }
+/* the page's first view: in browse only where it was left (same centre and zoom), otherwise the whole map */
+function fitStart() {
+  const v = S.browse && S.browseView;
+  if (!v || !W || !H) return fitFull(false);
+  tween(clampV({ x: v.x - v.w / 2, y: v.y + (v.w * H) / W / 2, w: v.w }), false);
+}
+/* browse only keeps its view: half a second after the map stops moving it is saved (only once the first view is set) */
+let viewT = 0;
+function rememberView() {
+  if (!S.browse || !compute.ran || !W || !H) return;
+  const r = (n) => Math.round(n * 10) / 10,
+    v = { x: r(V.x + V.w / 2), y: r(V.y - (V.w * H) / W / 2), w: r(V.w) },
+    o = S.browseView;
+  clearTimeout(viewT);
+  if (o && o.x === v.x && o.y === v.y && o.w === v.w) return;
+  viewT = setTimeout(() => {
+    if (!S.browse) return;
+    S.browseView = v;
+    save();
+  }, 500);
+}
 function tween(t, anim) {
   stopMotion();
   const f = { ...V };
@@ -3091,6 +3117,7 @@ function fling(vx, vy) {
   glRaf = requestAnimationFrame(glide);
 }
 function draw() {
+  rememberView();
   const s = sc();
   /* icon sizes from Display settings: containers and doors, LZs / COPs / my position, custom POIs */
   const ICONK = ST.iconSize / 100,
@@ -4394,7 +4421,7 @@ const relayout = () => {
   size();
   if (SEL) pick(SEL, false);
   else if (S.browse && ow) tween(clampV({ x: V.x, y: V.y, w: (V.w * W) / ow }), false);
-  else fitFull(false);
+  else fitStart();
   /* resizing clears the canvas: redraw before this frame paints, or the map blinks dark while the routes panel slides */
   cancelAnimationFrame(raf);
   draw();
