@@ -489,9 +489,6 @@ const I18N = {
     "det.end": "End",
     "det.startCop": "The chosen starting COP. Spawn here and walk to the first stop.",
     "det.startMe": "Your position, set on the map. Walk from here to the first stop.",
-    "det.endCopBias":
-      "COP: carry on to the next run on foot from here. {lz} is nearer ({d} m), but the COP advantage ({bias} m) makes this the goal.",
-    "det.endCop": "The COP nearest to the last stop: carry on to the next run on foot from here.",
     "det.containers": "Containers",
     "det.doors": (v) => ` + ${v.n} ${v.n === 1 ? "door" : "doors"}`,
     "det.avg": "Avg. leg",
@@ -1001,9 +998,6 @@ const I18N = {
     "det.end": "Vége",
     "det.startCop": "A kiválasztott kiinduló COP. Itt spawnolj, innen gyalog az első megállóig.",
     "det.startMe": "A térképen kijelölt saját pozíciód. Innen sétálj az első megállóig.",
-    "det.endCopBias":
-      "COP: innen gyalog folytathatod a következő kört. {lz} közelebb van ({d} m), de a COP előny ({bias} m) miatt ez a cél.",
-    "det.endCop": "Az utolsó megállóhoz legközelebbi COP: innen gyalog folytathatod a következő kört.",
     "det.containers": "Containerek",
     "det.doors": " + {n} ajtó",
     "det.avg": "Átl. szakasz",

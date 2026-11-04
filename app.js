@@ -529,13 +529,19 @@ function applyPreset(d) {
   S.run = Array.isArray(d.run) ? d.run.filter((k) => typeof k === "string").slice(0, 1000) : null;
 }
 /* browse only: the selection is put aside for when it goes off, and browse only's own types show instead; the first
-   time, every listed container type (the map's and your own) is ticked on top of the selection */
+   time, every listed container type (the map's and your own) and the locked doors and keypads are ticked on top of the
+   selection */
 function enterBrowse() {
   S.preBrowse = new Set(S.sel);
   if (S.browseSel) S.sel = new Set(S.browseSel);
   else
     T.forEach((x, i) => {
-      if ((x.group === "Containers" || x.group === "Custom") && !(x.custom && !x.n)) S.sel.add(i);
+      if (
+        ((x.group === "Containers" || x.group === "Custom") && !(x.custom && !x.n)) ||
+        x.name === "Key-locked Doors" ||
+        x.name === "Code-locked Doors"
+      )
+        S.sel.add(i);
     });
 }
 /* the selected route is stored as its containers' positions, so it is found again after a reload even if routes are renumbered */
@@ -1359,7 +1365,8 @@ const ALLPOI = M.filter((m) => T[m.t].group === "Points of interest");
 /* shown on the map when ticked, never a route stop: COPs (outposts, not loot), Intel and code-locked doors */
 const NOROUTE_T = new Set(["COP", "Intel", "Code-locked Doors"]),
   NOROUTE = (t) => NOROUTE_T.has(T[t]?.name),
-  ISCOP = (t) => T[t]?.name === "COP";
+  ISCOP = (t) => T[t]?.name === "COP",
+  KEYPAD = (t) => T[t]?.name === "Code-locked Doors";
 /* ---------- codes ---------- */
 /* DATA.codes: per code-locked door (marker id) the Intel that gives its code and gzwtacmap's other unlock requirements (a
    Generator, a Hacking Tool...); CODEFOR: the other way round, the doors an Intel opens. Show code (a click on the door or its
@@ -1946,8 +1953,9 @@ try {
         NOTES.set(e[0], e[1].slice(0, NOTEMAX));
     });
 } catch {}
-/* containers, key-locked doors (by their lock's marker id) and custom markers take notes; only the map's containers can be Not found */
-const canNote = (m) => !!m && (canNF(m) || !!m.door || !!m.custom),
+/* containers, key-locked doors (by their lock's marker id), keypads (code-locked doors) and custom markers take notes;
+   only the map's containers can be Not found */
+const canNote = (m) => !!m && (canNF(m) || !!m.door || !!m.custom || KEYPAD(m.t)),
   noteOf = (m) => NOTES.get(nfKey(m)) || "";
 function setNote(m, text) {
   text = text.trim().slice(0, NOTEMAX);
@@ -2552,8 +2560,8 @@ function detail() {
     d.lastChild.textContent = v;
     det.appendChild(d);
   };
-  /* the start and the end point side by side in one row (lzs, first in the details); the line under one explains a COP or
-     your position (a plain LZ needs none) */
+  /* the start and the end point side by side in one row (lzs, first in the details); the line under the start explains a
+     COP or your position (a plain LZ needs none) */
   const lzs = document.createElement("div");
   lzs.className = "lzs";
   det.appendChild(lzs);
@@ -2571,18 +2579,6 @@ function detail() {
       e.appendChild(x);
     }
     lzs.appendChild(e);
-  };
-  /* a COP end point may have won over a nearer LZ thanks to the COP advantage: then say which LZ was nearer */
-  const endTxt = () => {
-    if (r.B.lz.kind !== "cop") return "";
-    const last = r.seq[r.n - 1],
-      lz = nearestIn(
-        LZE.filter((l) => l.kind !== "cop"),
-        last,
-      );
-    return lz.lz && lz.d < r.B.d
-      ? t("det.endCopBias", { lz: nm(lz.lz), d: fm(lz.d), bias: fm(S.copBias) })
-      : t("det.endCop");
   };
   lzRow(
     t("det.start"),
@@ -2610,7 +2606,7 @@ function detail() {
     det.lastChild.querySelector(".v").appendChild(b);
   }
   kv(t("det.avg"), fm(r.avg) + " m");
-  lzRow(t("det.end"), r.B.lz, r.B.d, r.B.lz === r.A.lz ? "" : endTxt());
+  lzRow(t("det.end"), r.B.lz, r.B.d);
   /* locked rooms near the walk: tick one to add it as a stop; the ones you have the key for are marked */
   const nearby = nearDoors(r);
   if (nearby.length) {
@@ -4029,7 +4025,7 @@ cv.addEventListener("mousemove", (e) => {
     }
     if (codeIntel(o).length) L.push(t("tip.codeShow"));
     if (o.custom) L.push(t("cm.tip"));
-    else if (o.run && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipNote"));
+    else if ((o.run || KEYPAD(o.t)) && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipNote"));
   }
   tip.textContent = "";
   const ph = best.kind === "container" && photoFor(o.id);
@@ -4164,7 +4160,8 @@ cv.addEventListener("contextmenu", (e) => {
     o = best && best.o;
   if (
     best &&
-    ((((best.kind === "container" && (o.run || o.custom)) || best.kind === "poi" || best.kind === "custom") && canNote(o)) ||
+    ((((best.kind === "container" && (o.run || o.custom || KEYPAD(o.t))) || best.kind === "poi" || best.kind === "custom") &&
+      canNote(o)) ||
       (best.kind === "container" && codeIntel(o).length))
   )
     openCtx(o, e.clientX, e.clientY, cv);
