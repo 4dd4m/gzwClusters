@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GZW Server Tracker</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --bg: #eef0e8;
+        --paper: #f8f9f3;
+        --ink: #1f2619;
+        --muted: #5d6655;
+        --line: #cdd2c2;
+        --accent: #b4530f;
+        --danger: #a8321f;
+        --body: "IBM Plex Sans", system-ui, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #151a13;
+          --paper: #1c2219;
+          --ink: #e3e8d9;
+          --muted: #9aa58e;
+          --line: #343d2e;
+          --accent: #f08a3c;
+          --danger: #e0644c;
+          color-scheme: dark;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.4 var(--body);
+      }
+      main { max-width: 480px; margin: 0 auto; padding: 24px 16px; }
+      h1 { font-size: 22px; margin: 0 0 16px; letter-spacing: 0.02em; }
+      form, ul {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 14px;
+      }
+      form { display: grid; gap: 10px; }
+      label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+      select, input, button {
+        font: inherit;
+        color: var(--ink);
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 8px 10px;
+      }
+      button { cursor: pointer; font-weight: 600; }
+      #looted { background: var(--accent); border-color: var(--accent); color: #fff; }
+      #looted:disabled { opacity: 0.5; cursor: default; }
+      ul { list-style: none; margin: 16px 0; padding: 0; }
+      li {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-top: 1px solid var(--line);
+      }
+      li:first-child { border-top: 0; }
+      li .ago { font-family: var(--mono); color: var(--accent); }
+      li.empty { color: var(--muted); justify-content: center; }
+      #reset { width: 100%; color: var(--danger); border-color: var(--danger); background: transparent; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>GZW Server Tracker</h1>
+
+      <form id="form">
+        <label>
+          Server
+          <select id="server" required>
+            <option value="">Select a server…</option>
+          </select>
+        </label>
+        <label>
+          Looted at
+          <input id="time" type="time" required />
+        </label>
+        <button id="looted" type="submit" disabled>Looted</button>
+      </form>
+
+      <ul id="list"></ul>
+
+      <button id="reset" type="button">Reset</button>
+    </main>
+
+    <script>
+      const SERVERS = [
+        "Asia East", "Asia Northeast", "Asia Southeast",
+        "Europe East", "Europe West",
+        "Mainland China", "Middle East", "Oceania",
+        "South Africa East", "South Africa West", "South America",
+        "US Central", "US East", "US West",
+      ];
+      const KEY = "gzwServerTracker";
+
+      const $ = (id) => document.getElementById(id);
+      const pad = (n) => String(n).padStart(2, "0");
+
+      const load = () => {
+        try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
+      };
+      const save = (data) => localStorage.setItem(KEY, JSON.stringify(data));
+
+      for (const name of SERVERS) $("server").add(new Option(name, name));
+
+      $("server").addEventListener("change", () => {
+        const now = new Date();
+        $("time").value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        $("looted").disabled = !$("server").value;
+      });
+
+      $("form").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const [h, m] = $("time").value.split(":").map(Number);
+        const at = new Date();
+        at.setHours(h, m, 0, 0);
+        /* a time later than now means it was looted before midnight */
+        if (at > Date.now()) at.setDate(at.getDate() - 1);
+        const data = load();
+        data[$("server").value] = at.getTime();
+        save(data);
+        render();
+      });
+
+      $("reset").addEventListener("click", () => {
+        if (!confirm("Clear all looted servers?")) return;
+        localStorage.removeItem(KEY);
+        render();
+      });
+
+      function render() {
+        const entries = Object.entries(load()).sort((a, b) => a[1] - b[1]);
+        $("list").replaceChildren(
+          ...(entries.length
+            ? entries.map(([name, at]) => {
+                const li = document.createElement("li");
+                const mins = Math.max(0, Math.floor((Date.now() - at) / 60000));
+                li.innerHTML = `<span></span><span class="ago">${mins} min</span>`;
+                li.firstChild.textContent = name;
+                return li;
+              })
+            : [Object.assign(document.createElement("li"), { className: "empty", textContent: "No looted servers yet" })])
+        );
+      }
+
+      render();
+      setInterval(render, 15000);
+    </script>
+  </body>
+</html>

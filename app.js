@@ -4042,9 +4042,10 @@ cv.addEventListener("mousemove", (e) => {
       );
     else if (NOSEC.has(o.i)) L.push(t("tip.nosec", { s: NOSEC.get(o.i) }));
     else if (LEFT.has(o.i)) L.push(t("tip.left"));
-    /* off-route containers: how long a looted mark still keeps it out, and the click that marks or unmarks it */
+    /* off-route containers: how long a looted mark still keeps it out, and the click that marks or unmarks it (not in
+       browse only) */
     if (canNF(o) && isNF(o)) L.push(t("nf.tip", { date: fdate(NF.get(nfKey(o)).at) }));
-    else if (!o.run && !o.door && !NOROUTE(o.t)) {
+    else if (!S.browse && !o.run && !o.door && !NOROUTE(o.t)) {
       const left = lootLeft(mkey(o));
       if (left > 0) L.push(t("tip.looted", { at: clock(S.looted.get(mkey(o))), min: Math.ceil(left / 60000) }));
       else if (S.planExcl.has(mkey(o))) L.push(t("tip.lapsed"));
@@ -4052,7 +4053,7 @@ cv.addEventListener("mousemove", (e) => {
     }
     if (codeIntel(o).length) L.push(t("tip.codeShow"));
     if (o.custom) L.push(t("cm.tip"));
-    else if ((o.run || KEYPAD(o.t)) && canNote(o)) L.push(t(canNF(o) ? "ctx.tip" : "ctx.tipNote"));
+    else if ((o.run || KEYPAD(o.t) || S.browse) && canNote(o)) L.push(t(canNF(o) && o.run ? "ctx.tip" : "ctx.tipNote"));
   }
   tip.textContent = "";
   const ph = best.kind === "container" && photoFor(o.id);
@@ -4123,8 +4124,9 @@ cv.addEventListener("click", (e) => {
     STEP = r.seq.indexOf(best.o) + 1;
     updNav();
     schedule();
-  } else if (best && best.kind === "container" && !best.o.door && !NOROUTE(best.o.t) && !isNF(best.o)) {
-    /* a container on no route (left out, or already looted): click marks it looted, or takes the mark off */
+  } else if (!S.browse && best && best.kind === "container" && !best.o.door && !NOROUTE(best.o.t) && !isNF(best.o)) {
+    /* a container on no route (left out, or already looted): click marks it looted, or takes the mark off (not in
+       browse only, which plans nothing) */
     setLooted(best.o, !isLooted(best.o));
     lootChanged(null);
     tip.hidden = true;
@@ -4187,7 +4189,9 @@ cv.addEventListener("contextmenu", (e) => {
     o = best && best.o;
   if (
     best &&
-    ((((best.kind === "container" && (o.run || o.custom || KEYPAD(o.t))) || best.kind === "poi" || best.kind === "custom") &&
+    ((((best.kind === "container" && (o.run || o.custom || KEYPAD(o.t) || S.browse)) ||
+      best.kind === "poi" ||
+      best.kind === "custom") &&
       canNote(o)) ||
       (best.kind === "container" && codeIntel(o).length))
   )
