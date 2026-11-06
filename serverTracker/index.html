@@ -65,7 +65,16 @@
         border-top: 1px solid var(--line);
       }
       li:first-child { border-top: 0; }
-      li .ago { font-family: var(--mono); color: var(--accent); }
+      li .ago { font-family: var(--mono); color: var(--accent); margin-left: auto; }
+      li .del {
+        margin-left: 12px;
+        padding: 0 8px;
+        color: var(--danger);
+        border-color: transparent;
+        background: transparent;
+        line-height: 1;
+      }
+      li .del:hover { border-color: var(--danger); }
       li.empty { color: var(--muted); justify-content: center; }
       #reset { width: 100%; color: var(--danger); border-color: var(--danger); background: transparent; }
     </style>
@@ -111,7 +120,16 @@
       };
       const save = (data) => localStorage.setItem(KEY, JSON.stringify(data));
 
-      for (const name of SERVERS) $("server").add(new Option(name, name));
+      /* the dropdown offers only servers not already in the looted list */
+      function renderServers() {
+        const data = load(),
+          sel = $("server"),
+          keep = sel.value;
+        sel.length = 1;
+        for (const name of SERVERS) if (!(name in data)) sel.add(new Option(name, name));
+        sel.value = keep in data ? "" : keep;
+        $("looted").disabled = !sel.value;
+      }
 
       $("server").addEventListener("change", () => {
         const now = new Date();
@@ -129,12 +147,14 @@
         const data = load();
         data[$("server").value] = at.getTime();
         save(data);
+        renderServers();
         render();
       });
 
       $("reset").addEventListener("click", () => {
         if (!confirm("Clear all looted servers?")) return;
         localStorage.removeItem(KEY);
+        renderServers();
         render();
       });
 
@@ -145,14 +165,23 @@
             ? entries.map(([name, at]) => {
                 const li = document.createElement("li");
                 const mins = Math.max(0, Math.floor((Date.now() - at) / 60000));
-                li.innerHTML = `<span></span><span class="ago">${mins} min</span>`;
+                li.innerHTML = `<span></span><span class="ago">${mins} min</span><button class="del" type="button" title="Remove">✕</button>`;
                 li.firstChild.textContent = name;
+                li.lastChild.addEventListener("click", () => {
+                  if (!confirm(`Remove ${name} from the looted list?`)) return;
+                  const data = load();
+                  delete data[name];
+                  save(data);
+                  renderServers();
+                  render();
+                });
                 return li;
               })
             : [Object.assign(document.createElement("li"), { className: "empty", textContent: "No looted servers yet" })])
         );
       }
 
+      renderServers();
       render();
       setInterval(render, 15000);
     </script>
