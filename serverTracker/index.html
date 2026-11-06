@@ -134,6 +134,13 @@
       };
       const save = (data) => localStorage.setItem(KEY, JSON.stringify(data));
 
+      /* server cleanup: drops servers looted more than an hour ago (on load, and on each Looted) */
+      function cleanup() {
+        const data = load();
+        for (const [name, at] of Object.entries(data)) if (Date.now() - at > 3600000) delete data[name];
+        save(data);
+      }
+
       /* the dropdown offers only servers not already in the looted list */
       function renderServers() {
         const data = load(),
@@ -158,6 +165,7 @@
         at.setHours(h, m, 0, 0);
         /* a time later than now means it was looted before midnight */
         if (at > Date.now()) at.setDate(at.getDate() - 1);
+        cleanup();
         const data = load();
         data[$("server").value] = at.getTime();
         save(data);
@@ -196,6 +204,7 @@
         );
       }
 
+      cleanup();
       renderServers();
       render();
       setInterval(render, 15000);
