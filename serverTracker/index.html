@@ -179,8 +179,8 @@
             ? entries.map(([name, at]) => {
                 const li = document.createElement("li");
                 const mins = Math.max(0, Math.floor((Date.now() - at) / 60000));
-                /* red while looted 30 min ago or less, green after */
-                li.innerHTML = `<span class="dot${mins <= 30 ? " fresh" : ""}"></span><span></span><span class="ago">${mins} min</span><button class="del" type="button" title="Remove">✕</button>`;
+                /* red while looted less than an hour ago, green after */
+                li.innerHTML = `<span class="dot${mins < 60 ? " fresh" : ""}"></span><span></span><span class="ago">${mins} min</span><button class="del" type="button" title="Remove">✕</button>`;
                 li.children[1].textContent = name;
                 li.lastChild.addEventListener("click", () => {
                   if (!confirm(`Remove ${name} from the looted list?`)) return;
