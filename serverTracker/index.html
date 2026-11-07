@@ -89,7 +89,7 @@
         line-height: 1;
       }
       li .del:hover { border-color: var(--danger); }
-      li.empty { color: var(--muted); justify-content: center; }
+      ul:empty::before { content: "No looted servers yet"; display: block; padding: 10px 14px; text-align: center; color: var(--muted); }
       #reset { width: 100%; color: var(--danger); border-color: var(--danger); background: transparent; }
     </style>
   </head>
@@ -112,6 +112,9 @@
       </form>
 
       <ul id="list"></ul>
+      <template id="row">
+        <li><span class="dot"></span><span class="name"></span><span class="ago"></span><button class="del" type="button" title="Remove">✕</button></li>
+      </template>
 
       <button id="reset" type="button">Reset</button>
     </main>
@@ -125,36 +128,56 @@
         "US Central", "US East", "US West",
       ];
       const KEY = "gzwServerTracker";
+      const HOUR = 3600000;
 
       const $ = (id) => document.getElementById(id);
-      const pad = (n) => String(n).padStart(2, "0");
 
       const load = () => {
         try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
       };
-      const save = (data) => localStorage.setItem(KEY, JSON.stringify(data));
 
       /* server cleanup: drops servers looted more than an hour ago (on load, and on each Looted) */
-      function cleanup() {
-        const data = load();
-        for (const [name, at] of Object.entries(data)) if (Date.now() - at > 3600000) delete data[name];
-        save(data);
+      function prune(data) {
+        for (const [name, at] of Object.entries(data)) if (Date.now() - at > HOUR) delete data[name];
+        return data;
+      }
+
+      function commit(data) {
+        localStorage.setItem(KEY, JSON.stringify(data));
+        renderServers(data);
+        render(data);
       }
 
       /* the dropdown offers only servers not already in the looted list */
-      function renderServers() {
-        const data = load(),
-          sel = $("server"),
+      function renderServers(data) {
+        const sel = $("server"),
           keep = sel.value;
         sel.length = 1;
-        for (const name of SERVERS) if (!(name in data)) sel.add(new Option(name, name));
+        for (const name of SERVERS) if (!(name in data)) sel.add(new Option(name));
         sel.value = keep in data ? "" : keep;
         $("looted").disabled = !sel.value;
       }
 
+      function render(data = load()) {
+        const now = Date.now();
+        $("list").replaceChildren(
+          ...Object.entries(data)
+            .sort((a, b) => a[1] - b[1])
+            .map(([name, at]) => {
+              const li = $("row").content.firstElementChild.cloneNode(true);
+              const mins = Math.max(0, Math.floor((now - at) / 60000));
+              li.dataset.name = name;
+              /* red while looted less than an hour ago, green after */
+              li.querySelector(".dot").classList.toggle("fresh", mins < 60);
+              li.querySelector(".name").textContent = name;
+              li.querySelector(".ago").textContent = `${mins} min`;
+              return li;
+            })
+        );
+      }
+
       $("server").addEventListener("change", () => {
-        const now = new Date();
-        $("time").value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        $("time").value = new Date().toTimeString().slice(0, 5);
         $("looted").disabled = !$("server").value;
       });
 
@@ -165,48 +188,24 @@
         at.setHours(h, m, 0, 0);
         /* a time later than now means it was looted before midnight */
         if (at > Date.now()) at.setDate(at.getDate() - 1);
-        cleanup();
-        const data = load();
+        const data = prune(load());
         data[$("server").value] = at.getTime();
-        save(data);
-        renderServers();
-        render();
+        commit(data);
+      });
+
+      $("list").addEventListener("click", (e) => {
+        const name = e.target.closest(".del")?.parentElement.dataset.name;
+        if (!name || !confirm(`Remove ${name} from the looted list?`)) return;
+        const data = load();
+        delete data[name];
+        commit(data);
       });
 
       $("reset").addEventListener("click", () => {
-        if (!confirm("Clear all looted servers?")) return;
-        localStorage.removeItem(KEY);
-        renderServers();
-        render();
+        if (confirm("Clear all looted servers?")) commit({});
       });
 
-      function render() {
-        const entries = Object.entries(load()).sort((a, b) => a[1] - b[1]);
-        $("list").replaceChildren(
-          ...(entries.length
-            ? entries.map(([name, at]) => {
-                const li = document.createElement("li");
-                const mins = Math.max(0, Math.floor((Date.now() - at) / 60000));
-                /* red while looted less than an hour ago, green after */
-                li.innerHTML = `<span class="dot${mins < 60 ? " fresh" : ""}"></span><span></span><span class="ago">${mins} min</span><button class="del" type="button" title="Remove">✕</button>`;
-                li.children[1].textContent = name;
-                li.lastChild.addEventListener("click", () => {
-                  if (!confirm(`Remove ${name} from the looted list?`)) return;
-                  const data = load();
-                  delete data[name];
-                  save(data);
-                  renderServers();
-                  render();
-                });
-                return li;
-              })
-            : [Object.assign(document.createElement("li"), { className: "empty", textContent: "No looted servers yet" })])
-        );
-      }
-
-      cleanup();
-      renderServers();
-      render();
+      commit(prune(load()));
       setInterval(render, 15000);
     </script>
   </body>
