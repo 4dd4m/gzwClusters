@@ -3661,7 +3661,8 @@ function draw() {
     });
   if (S.poiNames) {
     /* every point-of-interest name, placed greedily so labels never overlap (the ones with a note first); each takes
-       notes like a container: hover shows the note, a chat bubble marks it, right-click adds or edits it */
+       notes like a container: hover shows the note, a chat bubble marks it (on its icon instead when its type is ticked),
+       right-click adds or edits it */
     const placed = labelBoxes,
       hitR = (a) => placed.some((b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]),
       noted = (p) => NOTES.has(nfKey(p)),
@@ -3687,7 +3688,7 @@ function draw() {
       ctx.strokeText(p.label, x, y + 4);
       ctx.fillStyle = "#f3f6ec";
       ctx.fillText(p.label, x, y + 4);
-      if (noted(p)) noteBubble(x, y, 6);
+      if (noted(p) && !SEENOBJ.has(p)) noteBubble(x, y, 6);
       drawn.push({ x, y, r: 6, box: r, kind: "poi", o: p });
     });
     ctx.textAlign = "left";
