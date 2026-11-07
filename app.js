@@ -281,27 +281,14 @@ const heading = (a, b) =>
   (Math.round(((Math.atan2(b.lng - a.lng, b.lat - a.lat) * 180) / Math.PI + 360) % 360) % 360) + "°";
 let LZS = LZ,
   LZE = LZ; /* start points and end points: LZs, plus COPs when the matching option is on */
-const nearestIn = (set, p) => {
-  let b = null,
-    bd = 1e18;
-  for (const l of set) {
-    const d = D(l, p);
-    if (d < bd) {
-      bd = d;
-      b = l;
-    }
-  }
-  return { lz: b, d: bd };
-};
-const nearestS = (p) => nearestIn(LZS, p);
-/* end point: the nearest LZ, or a COP (COP as end point) if it is at most S.copBias metres farther; same rule as the planner */
-const nearestE = (p) => {
+/* the nearest of a set, with COPs counted copBias metres nearer than they are */
+const nearestIn = (set, p, copBias = 0) => {
   let b = null,
     bd = 1e18,
     be = 1e18;
-  for (const l of LZE) {
+  for (const l of set) {
     const d = D(l, p),
-      e = d - (l.kind === "cop" ? S.copBias : 0);
+      e = d - (l.kind === "cop" ? copBias : 0);
     if (e < be) {
       be = e;
       bd = d;
@@ -310,6 +297,9 @@ const nearestE = (p) => {
   }
   return { lz: b, d: bd };
 };
+const nearestS = (p) => nearestIn(LZS, p);
+/* end point: the nearest LZ, or a COP (COP as end point) if it is at most S.copBias metres farther; same rule as the planner */
+const nearestE = (p) => nearestIn(LZE, p, S.copBias);
 const AREAS = (DATA.areas || []).map((a) => ({ lat: a[0], lng: a[1], label: a[2] }));
 /* zone borders (Blue Lagoon, YBL-1, ...), traced from gzwtacmap's region overlay: "x,y x,y|..." in map metres, x = lng, y = lat */
 const ZB =
